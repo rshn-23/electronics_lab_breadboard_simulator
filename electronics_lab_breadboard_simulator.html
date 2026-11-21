@@ -1,0 +1,3033 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Electronics Lab Breadboard Simulator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-canvas: #0b0f19;
+      --panel-bg: #111827;
+      --border-col: #1f2937;
+    }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-canvas);
+      color: #f3f4f6;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+    }
+    .font-mono-tech {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Interactive SVG Cursors & Smoothness */
+    .bb-hole {
+      transition: all 0.12s ease;
+      cursor: crosshair;
+    }
+    .bb-hole:hover {
+      r: 6.5px;
+      stroke-width: 2.5px;
+    }
+    .inst-terminal {
+      transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+      cursor: crosshair;
+    }
+    .inst-terminal:hover {
+      transform: scale(1.22);
+    }
+    .placed-comp {
+      cursor: grab;
+      transition: filter 0.15s ease;
+    }
+    .placed-comp:active {
+      cursor: grabbing;
+    }
+    .placed-comp.selected {
+      filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.75));
+    }
+    .wire-path {
+      cursor: pointer;
+      transition: stroke-width 0.15s ease, filter 0.15s ease;
+    }
+    .wire-path:hover {
+      stroke-width: 6.5px;
+      filter: drop-shadow(0 0 8px rgba(255,255,255,0.5));
+    }
+    .wire-path.selected {
+      stroke-dasharray: 6 3;
+      filter: drop-shadow(0 0 10px rgba(244, 63, 94, 0.9));
+    }
+    .workbench-grid {
+      background-color: #0b0f19;
+      background-image: 
+        radial-gradient(rgba(255,255,255,0.06) 1px, transparent 0),
+        radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0);
+      background-size: 32px 32px;
+      background-position: 0 0, 16px 16px;
+    }
+    input[type="range"] {
+      accent-color: #38bdf8;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col overflow-hidden">
+
+  <!-- TOP NAVIGATION & EXPERIMENT BAR -->
+  <header class="h-16 bg-slate-900/95 border-b border-slate-800 px-4 flex items-center justify-between shrink-0 z-30 shadow-lg">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-md shadow-sky-500/20">
+        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+          Electronics Lab Breadboard Simulator
+          <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Interactive Exam Prep</span>
+        </h1>
+        <p class="text-xs text-slate-400">Drag components onto breadboard, press <kbd class="px-1.5 py-0.5 bg-slate-800 text-sky-400 rounded border border-slate-700 font-mono-tech text-[10px]">R</kbd> to rotate, click holes to wire</p>
+      </div>
+    </div>
+
+    <!-- Experiment Selector -->
+    <div class="flex items-center gap-2.5">
+      <div class="flex flex-col">
+        <label class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-0.5">Select Laboratory Experiment / Mode</label>
+        <div class="flex items-center gap-2">
+          <select id="experimentSelect" class="bg-slate-800 hover:bg-slate-750 text-slate-100 text-xs font-medium rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-sky-500 transition w-72">
+            <option value="custom">Custom Sandbox Mode (Free Circuit Design)</option>
+            <option value="exp1" selected>1. V-I Characteristics of P-N Junction Diode</option>
+            <option value="exp2">2. V-I Characteristics of Zener Diode</option>
+            <option value="exp3">3. Zener Diode as a Voltage Regulator</option>
+            <option value="exp4">4. Half-Wave & Full-Wave Center-Tapped Rectifier</option>
+            <option value="exp5">5. Positive & Negative Biased Diode Clippers</option>
+            <option value="exp6">6. Common Emitter Bipolar Junction Transistor</option>
+            <option value="exp7">7. Junction Field Effect Transistor Characteristics</option>
+            <option value="exp8">8. Light Dependent Resistor Characteristics</option>
+          </select>
+
+          <select id="subModeSelect" class="bg-slate-800 text-sky-300 text-xs font-semibold rounded-lg px-2.5 py-2 border border-slate-700 focus:outline-none focus:border-sky-500 transition">
+            <!-- Populated dynamically based on experiment -->
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center gap-2">
+      <button id="btnVerifyCircuit" class="px-3.5 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-semibold text-xs shadow-lg shadow-emerald-600/25 flex items-center gap-1.5 transition transform active:scale-95">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        Verify Circuit Connections
+      </button>
+
+      <button id="btnReferenceModal" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs flex items-center gap-1.5 transition">
+        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+        </svg>
+        Circuit Diagram & Guide
+      </button>
+
+      <button id="btnAutoBuild" class="px-3 py-2 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 font-medium text-xs flex items-center gap-1.5 transition" title="Automatically place and wire the selected circuit onto the breadboard to see how it works">
+        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        Auto-Build Demo
+      </button>
+
+      <button id="btnClearBoard" class="px-2.5 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 font-medium text-xs transition" title="Clear wires or reset workbench">
+        Reset
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE BODY -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- LEFT DRAWER: FULL-NAME COMPONENT & INSTRUMENT SPAWNER -->
+    <aside class="w-80 bg-slate-900/95 border-r border-slate-800 flex flex-col shrink-0 z-20">
+      <!-- Wire Color & Active Tool Header -->
+      <div class="p-3.5 border-b border-slate-800 bg-slate-950/50">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Jumper Wire Color</span>
+          <span id="wireStatusBadge" class="text-[11px] text-sky-400 font-medium">Click any hole to wire</span>
+        </div>
+        <div class="flex items-center gap-2" id="wireColorPalette">
+          <button data-color="#ef4444" class="w-7 h-7 rounded-full bg-red-500 ring-2 ring-offset-2 ring-offset-slate-900 ring-white transition transform scale-105" title="Red Wire (Positive / Supply)"></button>
+          <button data-color="#3b82f6" class="w-7 h-7 rounded-full bg-blue-500 opacity-80 hover:opacity-100 transition" title="Blue Wire (Ground / Negative)"></button>
+          <button data-color="#10b981" class="w-7 h-7 rounded-full bg-emerald-500 opacity-80 hover:opacity-100 transition" title="Green Wire (Signal)"></button>
+          <button data-color="#f59e0b" class="w-7 h-7 rounded-full bg-amber-500 opacity-80 hover:opacity-100 transition" title="Yellow Wire (Meter Lead)"></button>
+          <button data-color="#a855f7" class="w-7 h-7 rounded-full bg-purple-500 opacity-80 hover:opacity-100 transition" title="Purple Wire"></button>
+          <button data-color="#f97316" class="w-7 h-7 rounded-full bg-orange-500 opacity-80 hover:opacity-100 transition" title="Orange Wire"></button>
+        </div>
+      </div>
+
+      <!-- Selected Item Inspector Bar (Rotation / Value / Delete) -->
+      <div id="selectionInspector" class="p-3 bg-sky-950/40 border-b border-sky-800/50 hidden">
+        <div class="flex items-center justify-between mb-1.5">
+          <span id="selectedItemTitle" class="text-xs font-bold text-sky-300 truncate">Selected Component</span>
+          <span class="text-[10px] font-mono-tech text-sky-400 bg-sky-900/50 px-1.5 py-0.5 rounded" id="selectedItemAngle">0°</span>
+        </div>
+        <div id="selectedItemControls" class="flex flex-wrap items-center gap-1.5 mt-2">
+          <button id="btnRotateSelected" class="flex-1 py-1.5 px-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-semibold flex items-center justify-center gap-1 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Rotate 90° (R)
+          </button>
+          <button id="btnDeleteSelected" class="py-1.5 px-2.5 bg-rose-600/80 hover:bg-rose-600 text-white rounded text-xs font-semibold transition">
+            Remove
+          </button>
+        </div>
+        <!-- Extra dynamic parameter editor (e.g. resistor ohms or meter range) -->
+        <div id="selectedParamContainer" class="mt-2.5 pt-2 border-t border-sky-800/40 hidden"></div>
+      </div>
+
+      <!-- Scrollable Component & Equipment Palette -->
+      <div class="flex-1 overflow-y-auto p-3.5 space-y-5">
+        
+        <!-- SECTION 1: BREADBOARD ELECTRONIC COMPONENTS -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">1. Breadboard Components</h2>
+            <span class="text-[10px] text-slate-400">Click to place on board</span>
+          </div>
+          <div class="space-y-2">
+            
+            <!-- P-N Junction Diode -->
+            <button onclick="spawnBreadboardComponent('diode_1n4001')" class="w-full p-2.5 rounded-xl bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 hover:border-sky-500/60 flex items-center gap-3 text-left transition group">
+              <div class="w-12 h-9 rounded-lg bg-slate-900 flex items-center justify-center border border-slate-800 shrink-0">
+                <svg class="w-10 h-5" viewBox="0 0 60 24">
+                  <line x1="2" y1="12" x2="58" y2="12" stroke="#94a3b8" stroke-width="2.5"/>
+                  <rect x="16" y="5" width="28" height="14" rx="2" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+                  <rect x="36" y="5" width="5" height="14" fill="#e2e8f0"/>
+                </svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="text-xs font-semibold text-slate-100 group-hover:text-sky-400 transition">P-N Junction Diode (1N4001)</div>
+                <div class="text-[11px] text-slate-400">Silicon Diode • Cut-in ~0.65 Volts</div>
+              </div>
+            </button>
+
+            <!-- Zener Diode -->
+            <button onclick="spawnBreadboardComponent('zener_5v6')" class="w-full p-2.5 rounded-xl bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 hover:border-sky-500/60 flex items-center gap-3 text-left transition group">
+              <div class="w-12 h-9 rounded-lg bg-slate-900 flex items-center justify-center border border-slate-800 shrink-0">
+                <svg class="w-10 h-5" viewBox="0 0 60 24">
+                  <line x1="2" y1="12" x2="58" y2="12" stroke="#94a3b8" stroke-width="2.5"/>
+                  <rect x="16" y="5" width="28" height="14" rx="3" fill="#ea580c" stroke="#fdba74" stroke-width="1"/>
+                  <rect x="36" y="5" width="4.5" height="14" fill="#0f172a"/>
+                </svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="text-xs font-semibold text-slate-100 group-hover:text-sky-400 transition">Zener Diode (1Z5.6 / 5.6 Volts)</div>
+                <div class="text-[11px] text-slate-400">Breakdown Voltage = 5.6 Volts</div>
+              </div>
+            </button>
+
+            <!-- Resistors with Quick Selector -->
+            <div class="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/80 space-y-2">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-9 rounded-lg bg-slate-900 flex items-center justify-center border border-slate-800 shrink-0">
+                  <svg class="w-10 h-5" viewBox="0 0 60 24">
+                    <line x1="2" y1="12" x2="58" y2="12" stroke="#94a3b8" stroke-width="2.5"/>
+                    <rect x="15" y="6" width="30" height="12" rx="4" fill="#d97706" stroke="#fbbf24" stroke-width="1"/>
+                    <rect x="21" y="6" width="3" height="12" fill="#78350f"/>
+                    <rect x="27" y="6" width="3" height="12" fill="#0f172a"/>
+                    <rect x="33" y="6" width="3" height="12" fill="#dc2626"/>
+                  </svg>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="text-xs font-semibold text-slate-100">Carbon Film Resistor</div>
+                  <div class="text-[11px] text-slate-400">Click any value to add to breadboard</div>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-1.5 pt-1">
+                <button onclick="spawnBreadboardComponent('resistor', 560)" class="py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-sky-950 text-slate-200 hover:text-sky-300 border border-slate-700 text-[11px] font-medium transition">+ 560 Ohms</button>
+                <button onclick="spawnBreadboardComponent('resistor', 1000)" class="py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-sky-950 text-slate-200 hover:text-sky-300 border border-slate-700 text-[11px] font-medium transition">+ 1 Kilo-Ohm</button>
+                <button onclick="spawnBreadboardComponent('resistor', 10000)" class="py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-sky-950 text-slate-200 hover:text-sky-300 border border-slate-700 text-[11px] font-medium transition">+ 10 Kilo-Ohms</button>
+                <button onclick="spawnBreadboardComponent('resistor', 100000)" class="py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-sky-950 text-slate-200 hover:text-sky-300 border border-slate-700 text-[11px] font-medium transition">+ 100 Kilo-Ohms</button>
+              </div>
+            </div>
+
+            <!-- Bipolar Junction Transistor (BC107) -->
+            <button onclick="spawnBreadboardComponent('bjt_bc107')" class="w-full p-2.5 rounded-xl bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 hover:border-sky-500/60 flex items-center gap-3 text-left transition group">
+              <div class="w-12 h-9 rounded-lg bg-slate-900 flex items-center justify-center border border-slate-800 shrink-0">
+                <svg class="w-10 h-7" viewBox="0 0 60 32">
+                  <circle cx="30" cy="14" r="10" fill="#334155" stroke="#94a3b8" stroke-width="1.5"/>
+                  <text x="30" y="17" text-anchor="middle" fill="#f8fafc" font-size="7" font-weight="bold">BC107</text>
+                </svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="text-xs font-semibold text-slate-100 group-hover:text-sky-400 transition">Bipolar Junction Transistor (BC107)</div>
+                <div class="text-[11px] text-slate-400">3 Pins: Collector, Base, Emitter</div>
+              </div>
+            </button>
+
+            <!-- Junction Field Effect Transistor (BFW10) -->
+            <button onclick="spawnBreadboardComponent('jfet_bfw10')" class="w-full p-2.5 rounded-xl bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 hover:border-sky-500/60 flex items-center gap-3 text-left transition group">
+              <div class="w-12 h-9 rounded-lg bg-slate-900 flex items-center justify-center border border-slate-800 shrink-0">
+                <svg class="w-10 h-7" viewBox="0 0 60 32">
+                  <circle cx="30" cy="14" r="10" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5"/>
+                  <text x="30" y="17" text-anchor="middle" fill="#38bdf8" font-size="6.5" font-weight="bold">BFW10</text>
+                </svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="text-xs font-semibold text-slate-100 group-hover:text-sky-400 transition">Junction Field Effect Transistor (BFW10)</div>
+                <div class="text-[11px] text-slate-400">3 Pins: Gate, Drain, Source</div>
+              </div>
+            </button>
+
+            <!-- Light Dependent Resistor -->
+            <button onclick="spawnBreadboardComponent('ldr_sensor')" class="w-full p-2.5 rounded-xl bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 hover:border-sky-500/60 flex items-center gap-3 text-left transition group">
+              <div class="w-12 h-9 rounded-lg bg-slate-900 flex items-center justify-center border border-slate-800 shrink-0">
+                <svg class="w-10 h-7" viewBox="0 0 60 28">
+                  <line x1="4" y1="14" x2="56" y2="14" stroke="#94a3b8" stroke-width="2"/>
+                  <circle cx="30" cy="14" r="9" fill="#fef3c7" stroke="#dc2626" stroke-width="2"/>
+                  <path d="M24 11 H36 L24 14 H36 L24 17 H36" stroke="#dc2626" stroke-width="1.2" fill="none"/>
+                </svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="text-xs font-semibold text-slate-100 group-hover:text-sky-400 transition">Light Dependent Resistor</div>
+                <div class="text-[11px] text-slate-400">With movable Light Source (5–100 cm)</div>
+              </div>
+            </button>
+
+          </div>
+        </div>
+
+        <!-- SECTION 2: BENCH INSTRUMENTS & METERS -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-amber-400">2. Add Extra Lab Equipment</h2>
+            <span class="text-[10px] text-slate-400">Customize bench</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mb-2.5 leading-relaxed">
+            You start with 1 Regulated Power Supply by default. Click below to add extra supplies, meters, or generators whenever your experiment requires them:
+          </p>
+          <div class="space-y-1.5">
+            <button onclick="spawnInstrument('rps')" class="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-amber-500/50 text-left flex items-center justify-between transition">
+              <div>
+                <div class="text-xs font-semibold text-slate-100">+ Regulated Power Supply (0 - 100 Volts)</div>
+                <div class="text-[10px] text-slate-400">Independent DC Voltage Source</div>
+              </div>
+              <span class="text-xs font-bold text-amber-400">Add</span>
+            </button>
+
+            <button onclick="spawnInstrument('voltmeter')" class="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-sky-500/50 text-left flex items-center justify-between transition">
+              <div>
+                <div class="text-xs font-semibold text-slate-100">+ Digital Voltmeter</div>
+                <div class="text-[10px] text-slate-400">Ranges: 0–1V, 0–10V, 0–30V, 0–100V</div>
+              </div>
+              <span class="text-xs font-bold text-sky-400">Add</span>
+            </button>
+
+            <button onclick="spawnInstrument('ammeter')" class="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-emerald-500/50 text-left flex items-center justify-between transition">
+              <div>
+                <div class="text-xs font-semibold text-slate-100">+ Digital Ammeter</div>
+                <div class="text-[10px] text-slate-400">Ranges: 0–100µA, 1mA, 10mA, 25mA, 100mA</div>
+              </div>
+              <span class="text-xs font-bold text-emerald-400">Add</span>
+            </button>
+
+            <button onclick="spawnInstrument('drb')" class="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-purple-500/50 text-left flex items-center justify-between transition">
+              <div>
+                <div class="text-xs font-semibold text-slate-100">+ Decade Resistance Box (Variable Load)</div>
+                <div class="text-[10px] text-slate-400">Adjustable 100 Ohms to 50 Kilo-Ohms</div>
+              </div>
+              <span class="text-xs font-bold text-purple-400">Add</span>
+            </button>
+
+            <button onclick="spawnInstrument('funcgen')" class="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-pink-500/50 text-left flex items-center justify-between transition">
+              <div>
+                <div class="text-xs font-semibold text-slate-100">+ Function Generator (Sine Wave AC)</div>
+                <div class="text-[10px] text-slate-400">1 Kilo-Hertz, 0 to 20 Volts Peak-to-Peak</div>
+              </div>
+              <span class="text-xs font-bold text-pink-400">Add</span>
+            </button>
+
+            <button onclick="spawnInstrument('transformer')" class="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-indigo-500/50 text-left flex items-center justify-between transition">
+              <div>
+                <div class="text-xs font-semibold text-slate-100">+ Center-Tapped Transformer (6V-0-6V)</div>
+                <div class="text-[10px] text-slate-400">Step-Down AC Source for Rectifiers</div>
+              </div>
+              <span class="text-xs font-bold text-indigo-400">Add</span>
+            </button>
+
+            <button onclick="spawnInstrument('cro')" class="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-teal-500/50 text-left flex items-center justify-between transition">
+              <div>
+                <div class="text-xs font-semibold text-slate-100">+ Cathode Ray Oscilloscope</div>
+                <div class="text-[10px] text-slate-400">Dual-Channel Waveform Display</div>
+              </div>
+              <span class="text-xs font-bold text-teal-400">Add</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- CENTER WORKBENCH: INSTRUMENTS + LARGE HIGH-PRECISION BREADBOARD -->
+    <main class="flex-1 flex flex-col workbench-grid relative overflow-hidden">
+
+      <!-- TOP FLOATING DIAGNOSTIC / VERIFICATION BANNER -->
+      <div id="diagnosticBanner" class="mx-4 mt-3 p-3 rounded-xl bg-slate-900/95 border border-slate-700 shadow-xl z-20 hidden transition-all">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-start gap-2.5">
+            <div id="diagIcon" class="mt-0.5"></div>
+            <div>
+              <h3 id="diagTitle" class="text-xs font-bold text-white">Circuit Verification Status</h3>
+              <ul id="diagList" class="text-xs text-slate-300 mt-1 space-y-1 list-disc list-inside"></ul>
+            </div>
+          </div>
+          <button onclick="document.getElementById('diagnosticBanner').classList.add('hidden')" class="text-slate-400 hover:text-white text-xs px-2 py-1 rounded bg-slate-800">Dismiss</button>
+        </div>
+      </div>
+
+      <!-- INTERACTIVE SVG WORKBENCH CANVAS -->
+      <div class="flex-1 relative flex items-center justify-center overflow-hidden" id="canvasContainer">
+        <svg id="workbenchSvg" viewBox="0 0 1220 760" class="w-full h-full max-w-[1440px] max-h-[880px]" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <!-- Subtle Shadow for Breadboard & Components -->
+            <filter id="boardShadow" x="-5%" y="-5%" width="110%" height="112%">
+              <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000000" flood-opacity="0.65"/>
+            </filter>
+            <filter id="compShadow" x="-15%" y="-15%" width="130%" height="130%">
+              <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.55"/>
+            </filter>
+            <linearGradient id="breadboardBody" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#f8fafc"/>
+              <stop offset="100%" stop-color="#e2e8f0"/>
+            </linearGradient>
+            <linearGradient id="ravineGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#cbd5e1"/>
+              <stop offset="50%" stop-color="#94a3b8"/>
+              <stop offset="100%" stop-color="#cbd5e1"/>
+            </linearGradient>
+          </defs>
+
+          <!-- LAYER 1: BENCH INSTRUMENTS DOCK (Rendered around the Breadboard) -->
+          <g id="instrumentsLayer"></g>
+
+          <!-- LAYER 2: HIGH-PRECISION SOLDERLESS BREADBOARD -->
+          <g id="breadboardGroup" filter="url(#boardShadow)">
+            <!-- Outer Plastic Body -->
+            <rect x="210" y="250" width="800" height="440" rx="16" fill="url(#breadboardBody)" stroke="#94a3b8" stroke-width="3"/>
+            
+            <!-- Top Power Rail Strip Lines -->
+            <line x1="255" y1="274" x2="965" y2="274" stroke="#ef4444" stroke-width="2" opacity="0.75"/>
+            <line x1="255" y1="316" x2="965" y2="316" stroke="#3b82f6" stroke-width="2" opacity="0.75"/>
+            <text x="234" y="294" fill="#dc2626" font-size="14" font-weight="bold" font-family="JetBrains Mono">+</text>
+            <text x="234" y="314" fill="#2563eb" font-size="16" font-weight="bold" font-family="JetBrains Mono">−</text>
+            <text x="980" y="294" fill="#dc2626" font-size="14" font-weight="bold" font-family="JetBrains Mono">+</text>
+            <text x="980" y="314" fill="#2563eb" font-size="16" font-weight="bold" font-family="JetBrains Mono">−</text>
+
+            <!-- Central IC Ravine / Divider Channel -->
+            <rect x="230" y="458" width="760" height="24" rx="4" fill="url(#ravineGrad)"/>
+            <text x="610" y="474" text-anchor="middle" fill="#475569" font-size="10" font-weight="600" letter-spacing="2">SOLDERLESS BREADBOARD TERMINAL STRIPS</text>
+
+            <!-- Bottom Power Rail Strip Lines -->
+            <line x1="255" y1="624" x2="965" y2="624" stroke="#ef4444" stroke-width="2" opacity="0.75"/>
+            <line x1="255" y1="666" x2="965" y2="666" stroke="#3b82f6" stroke-width="2" opacity="0.75"/>
+            <text x="234" y="644" fill="#dc2626" font-size="14" font-weight="bold" font-family="JetBrains Mono">+</text>
+            <text x="234" y="664" fill="#2563eb" font-size="16" font-weight="bold" font-family="JetBrains Mono">−</text>
+            <text x="980" y="644" fill="#dc2626" font-size="14" font-weight="bold" font-family="JetBrains Mono">+</text>
+            <text x="980" y="664" fill="#2563eb" font-size="16" font-weight="bold" font-family="JetBrains Mono">−</text>
+
+            <!-- Internal Strip Continuity Highlight Layer -->
+            <g id="stripHighlightLayer"></g>
+
+            <!-- Breadboard Labels & Holes Layer -->
+            <g id="breadboardLabelsLayer"></g>
+            <g id="breadboardHolesLayer"></g>
+          </g>
+
+          <!-- LAYER 3: PLACED ELECTRONIC COMPONENTS ON BREADBOARD -->
+          <g id="componentsLayer"></g>
+
+          <!-- LAYER 4: JUMPER WIRES LAYER -->
+          <g id="wiresLayer"></g>
+
+          <!-- LAYER 5: ACTIVE DRAG / RUBBERBAND WIRE PREVIEW -->
+          <path id="activeWirePreview" d="" fill="none" stroke="#38bdf8" stroke-width="4" stroke-dasharray="6 4" pointer-events="none" class="hidden"/>
+
+        </svg>
+
+        <!-- Bottom-Left Quick Controls Overlay -->
+        <div class="absolute bottom-3 left-4 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl px-3.5 py-2 flex items-center gap-4 text-xs text-slate-300 shadow-lg pointer-events-auto">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
+            <span>Hover hole: <strong>See internal strip connection</strong></span>
+          </div>
+          <div class="h-3 w-px bg-slate-700"></div>
+          <div>Click two holes/terminals: <strong>Connect Jumper Wire</strong></div>
+          <div class="h-3 w-px bg-slate-700"></div>
+          <div>Press <kbd class="px-1.5 py-0.5 bg-slate-800 text-sky-400 rounded border border-slate-700 font-mono-tech">R</kbd>: <strong>Rotate Component 90°</strong></div>
+        </div>
+      </div>
+
+      <!-- INTERACTIVE INSTRUMENT CONTROL STRIP (Bottom Dock for Live Sliders & Knobs) -->
+      <div id="instrumentControlsDock" class="h-32 bg-slate-900/95 border-t border-slate-800 px-4 py-2.5 flex items-center gap-3 overflow-x-auto shrink-0 z-20">
+        <!-- Populated dynamically with clean control cards for every active instrument & LDR Lamp -->
+      </div>
+
+    </main>
+
+    <!-- RIGHT PANEL: LIVE OSCILLOSCOPE, DATA TABULATION & CHARACTERISTIC GRAPH -->
+    <aside class="w-96 bg-slate-900/95 border-l border-slate-800 flex flex-col shrink-0 z-20">
+      
+      <!-- Panel Tabs -->
+      <div class="grid grid-cols-2 border-b border-slate-800 bg-slate-950/60 p-1 gap-1">
+        <button id="tabBtnGraph" onclick="switchRightTab('graph')" class="py-2 rounded-lg text-xs font-bold bg-slate-800 text-sky-400 shadow transition">
+          Live Graph & Readings
+        </button>
+        <button id="tabBtnCro" onclick="switchRightTab('cro')" class="py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition">
+          Cathode Ray Oscilloscope
+        </button>
+      </div>
+
+      <!-- TAB 1: CHARACTERISTIC GRAPH & OBSERVATION TABLE -->
+      <div id="panelGraphView" class="flex-1 flex flex-col overflow-y-auto p-3.5 space-y-4">
+        
+        <!-- Circuit Status Pill -->
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Simulation Engine Status</div>
+            <div id="simStatusText" class="text-xs font-bold text-emerald-400 mt-0.5">Live Real-Time Physics Active</div>
+          </div>
+          <button id="btnRecordPoint" class="px-3 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs shadow-md shadow-sky-500/20 flex items-center gap-1.5 transition transform active:scale-95">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4"/></svg>
+            Record Reading
+          </button>
+        </div>
+
+        <!-- Real-Time Characteristic Plotter Canvas -->
+        <div class="bg-slate-950 rounded-xl border border-slate-800 p-3">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h3 id="graphTitle" class="text-xs font-bold text-slate-200">V-I Characteristic Curve</h3>
+              <p id="graphAxisLabel" class="text-[10px] text-slate-400">X: Forward Voltage (V) vs Y: Current (mA)</p>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button id="btnAutoSweep" class="px-2 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold transition" title="Automatically sweep voltage and plot points">
+                Auto-Sweep Curve
+              </button>
+              <button id="btnClearData" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 text-[10px] transition">
+                Clear Plot
+              </button>
+            </div>
+          </div>
+          <canvas id="characteristicCanvas" width="340" height="220" class="w-full h-[210px] bg-slate-900/90 rounded-lg border border-slate-800/80"></canvas>
+        </div>
+
+        <!-- Recorded Observation Table -->
+        <div class="flex-1 flex flex-col bg-slate-950 rounded-xl border border-slate-800 overflow-hidden min-h-[210px]">
+          <div class="px-3 py-2 border-b border-slate-800 flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-200">Observation Tabulation</span>
+            <span id="readingCountBadge" class="text-[10px] font-mono-tech text-sky-400 bg-sky-950 px-2 py-0.5 rounded border border-sky-800">0 Readings</span>
+          </div>
+          <div class="flex-1 overflow-y-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-slate-800 text-[10px] uppercase text-slate-400 bg-slate-900/50">
+                  <th class="py-2 px-2.5">#</th>
+                  <th class="py-2 px-2.5" id="thCol1">Input</th>
+                  <th class="py-2 px-2.5" id="thCol2">Voltage (V)</th>
+                  <th class="py-2 px-2.5" id="thCol3">Current</th>
+                </tr>
+              </thead>
+              <tbody id="observationTableBody" class="divide-y divide-slate-800/60 text-xs font-mono-tech text-slate-200">
+                <tr>
+                  <td colspan="4" class="py-8 text-center text-slate-500 font-sans text-xs">
+                    Adjust the Regulated Power Supply and click <strong>"Record Reading"</strong> to log data points.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TAB 2: CATHODE RAY OSCILLOSCOPE (WAVEFORMS FOR RECTIFIERS & CLIPPERS) -->
+      <div id="panelCroView" class="flex-1 flex flex-col overflow-y-auto p-3.5 space-y-4 hidden">
+        <div class="bg-slate-950 rounded-xl border border-slate-800 p-3">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h3 class="text-xs font-bold text-teal-400">Dual-Channel Cathode Ray Oscilloscope</h3>
+              <p class="text-[10px] text-slate-400">Channel 1 (Yellow): Input AC • Channel 2 (Cyan): Output</p>
+            </div>
+            <span class="text-[10px] font-mono-tech px-2 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-800">1 kHz Timebase</span>
+          </div>
+          <canvas id="croCanvas" width="340" height="250" class="w-full h-[240px] bg-[#041a14] rounded-lg border-2 border-teal-900/80 shadow-inner"></canvas>
+          
+          <div class="grid grid-cols-2 gap-2 mt-3">
+            <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+              <div class="text-[10px] text-amber-400 font-semibold">Channel 1 (Input Vi)</div>
+              <div id="croCh1Readout" class="text-sm font-mono-tech font-bold text-white mt-0.5">12.0 Vp-p</div>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+              <div class="text-[10px] text-cyan-400 font-semibold">Channel 2 (Output Vo)</div>
+              <div id="croCh2Readout" class="text-sm font-mono-tech font-bold text-white mt-0.5">0.0 V peak</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs text-slate-300">
+          <h4 class="font-bold text-white">Waveform Analysis Metrics</h4>
+          <div class="flex justify-between py-1 border-b border-slate-800/80">
+            <span class="text-slate-400">Positive Peak Output (+Vmax):</span>
+            <span id="croVmax" class="font-mono-tech text-emerald-400 font-semibold">0.00 V</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-slate-800/80">
+            <span class="text-slate-400">Negative Peak Output (-Vmin):</span>
+            <span id="croVmin" class="font-mono-tech text-rose-400 font-semibold">0.00 V</span>
+          </div>
+          <div class="flex justify-between py-1">
+            <span class="text-slate-400">Average DC Value (Vdc):</span>
+            <span id="croVdc" class="font-mono-tech text-sky-400 font-semibold">0.00 V</span>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+
+  <!-- MODAL: CIRCUIT DIAGRAM, PINOUT GUIDE & STEP-BY-STEP HELP -->
+  <div id="referenceModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+        <div>
+          <h2 id="modalExpTitle" class="text-base font-bold text-white">Experiment Reference Guide</h2>
+          <p class="text-xs text-slate-400">Standard schematic connection checklist and component pinout guide</p>
+        </div>
+        <button onclick="document.getElementById('referenceModal').classList.add('hidden')" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6 overflow-y-auto space-y-5 text-xs text-slate-300 leading-relaxed" id="modalContentBody">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="px-6 py-3.5 border-t border-slate-800 bg-slate-950 flex items-center justify-between">
+        <span class="text-xs text-slate-400">Want to see an example placement on the breadboard?</span>
+        <div class="flex items-center gap-2">
+          <button onclick="document.getElementById('referenceModal').classList.add('hidden'); buildDemoCircuit();" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition">
+            Auto-Build Example on Breadboard
+          </button>
+          <button onclick="document.getElementById('referenceModal').classList.add('hidden')" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition">
+            Close & Wire Myself
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION LOGIC & PHYSICS ENGINE -->
+  <script>
+    /*************************************************************************
+     * 1. BREADBOARD GEOMETRY & HOLE COORDINATE SYSTEM
+     *************************************************************************/
+    const BB_COLS = 30;
+    const BB_START_X = 262;
+    const BB_PITCH = 24; // 24px spacing between holes for crystal-clear visibility
+
+    // Y coordinates for each row on the breadboard
+    const BB_ROW_Y = {
+      'TP': 290, // Top Positive Rail (+)
+      'TN': 312, // Top Negative Rail (-)
+      'A': 360,
+      'B': 382,
+      'C': 404,
+      'D': 426,
+      'E': 448,
+      'F': 492,
+      'G': 514,
+      'H': 536,
+      'I': 558,
+      'J': 580,
+      'BP': 636, // Bottom Positive Rail (+)
+      'BN': 658  // Bottom Negative Rail (-)
+    };
+
+    // Map of all breadboard holes: holeId -> { id, row, col, x, y, stripId }
+    const breadboardHoles = {};
+
+    function initBreadboardGeometry() {
+      const holesLayer = document.getElementById('breadboardHolesLayer');
+      const labelsLayer = document.getElementById('breadboardLabelsLayer');
+      holesLayer.innerHTML = '';
+      labelsLayer.innerHTML = '';
+
+      // Column numbers (1 to 30)
+      for (let col = 1; col <= BB_COLS; col++) {
+        const cx = BB_START_X + (col - 1) * BB_PITCH;
+        if (col === 1 || col % 5 === 0) {
+          const topLbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          topLbl.setAttribute('x', cx);
+          topLbl.setAttribute('y', 345);
+          topLbl.setAttribute('text-anchor', 'middle');
+          topLbl.setAttribute('fill', '#475569');
+          topLbl.setAttribute('font-size', '10');
+          topLbl.setAttribute('font-weight', '700');
+          topLbl.setAttribute('font-family', 'JetBrains Mono');
+          topLbl.textContent = col;
+          labelsLayer.appendChild(topLbl);
+
+          const botLbl = topLbl.cloneNode(true);
+          botLbl.setAttribute('y', 602);
+          labelsLayer.appendChild(botLbl);
+        }
+      }
+
+      // Row letters (A-E and F-J)
+      ['A','B','C','D','E','F','G','H','I','J'].forEach(r => {
+        const ry = BB_ROW_Y[r] + 3.5;
+        const leftLbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        leftLbl.setAttribute('x', 240);
+        leftLbl.setAttribute('y', ry);
+        leftLbl.setAttribute('text-anchor', 'middle');
+        leftLbl.setAttribute('fill', '#475569');
+        leftLbl.setAttribute('font-size', '11');
+        leftLbl.setAttribute('font-weight', '700');
+        leftLbl.setAttribute('font-family', 'JetBrains Mono');
+        leftLbl.textContent = r;
+        labelsLayer.appendChild(leftLbl);
+
+        const rightLbl = leftLbl.cloneNode(true);
+        rightLbl.setAttribute('x', 980);
+        labelsLayer.appendChild(rightLbl);
+      });
+
+      // Generate holes
+      Object.keys(BB_ROW_Y).forEach(rowKey => {
+        const y = BB_ROW_Y[rowKey];
+        const isRail = (rowKey === 'TP' || rowKey === 'TN' || rowKey === 'BP' || rowKey === 'BN');
+
+        for (let col = 1; col <= BB_COLS; col++) {
+          // Skip every 6th hole on power rails for realistic breadboard cluster look, or keep all 30 continuous
+          const x = BB_START_X + (col - 1) * BB_PITCH;
+          const holeId = `BB_${rowKey}_${col}`;
+          let stripId = '';
+          if (isRail) {
+            stripId = `RAIL_${rowKey}`; // Entire rail is internally connected
+          } else if (['A','B','C','D','E'].includes(rowKey)) {
+            stripId = `STRIP_TOP_${col}`; // Columns A-E are internally connected vertically
+          } else {
+            stripId = `STRIP_BOT_${col}`; // Columns F-J are internally connected vertically
+          }
+
+          breadboardHoles[holeId] = { id: holeId, row: rowKey, col, x, y, stripId };
+
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('id', `hole_${holeId}`);
+          circle.setAttribute('cx', x);
+          circle.setAttribute('cy', y);
+          circle.setAttribute('r', 4.6);
+          circle.setAttribute('fill', '#1e293b');
+          circle.setAttribute('stroke', '#64748b');
+          circle.setAttribute('stroke-width', '1.4');
+          circle.classList.add('bb-hole');
+
+          // Hover shows internal breadboard strip connection
+          circle.addEventListener('mouseenter', () => highlightBreadboardStrip(holeId));
+          circle.addEventListener('mouseleave', () => clearBreadboardStripHighlight());
+
+          // Click starts or finishes a jumper wire
+          circle.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            handleTerminalOrHoleClick(holeId);
+          });
+
+          holesLayer.appendChild(circle);
+        }
+      });
+    }
+
+    function highlightBreadboardStrip(holeId) {
+      const info = breadboardHoles[holeId];
+      if (!info) return;
+      const highlightLayer = document.getElementById('stripHighlightLayer');
+      highlightLayer.innerHTML = '';
+
+      // Find all holes sharing this stripId
+      const connectedHoles = Object.values(breadboardHoles).filter(h => h.stripId === info.stripId);
+      if (connectedHoles.length > 1) {
+        const minX = Math.min(...connectedHoles.map(h => h.x));
+        const maxX = Math.max(...connectedHoles.map(h => h.x));
+        const minY = Math.min(...connectedHoles.map(h => h.y));
+        const maxY = Math.max(...connectedHoles.map(h => h.y));
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', minX - 7);
+        rect.setAttribute('y', minY - 7);
+        rect.setAttribute('width', (maxX - minX) + 14);
+        rect.setAttribute('height', (maxY - minY) + 14);
+        rect.setAttribute('rx', 6);
+        rect.setAttribute('fill', 'rgba(16, 185, 129, 0.22)');
+        rect.setAttribute('stroke', '#10b981');
+        rect.setAttribute('stroke-width', '1.5');
+        rect.setAttribute('pointer-events', 'none');
+        highlightLayer.appendChild(rect);
+      }
+    }
+
+    function clearBreadboardStripHighlight() {
+      document.getElementById('stripHighlightLayer').innerHTML = '';
+    }
+
+    /*************************************************************************
+     * 2. STATE MANAGEMENT: INSTRUMENTS, COMPONENTS, WIRES & EXPERIMENTS
+     *************************************************************************/
+    let currentExperiment = 'exp1';
+    let currentSubMode = 'forward';
+    let selectedWireColor = '#ef4444';
+    let activeWireStartNode = null; // holeId or instTerminalId
+    let selectedEntity = null; // { kind: 'comp' | 'wire' | 'inst', id: string }
+
+    // Placed Breadboard Components
+    // Each: { id, type, name, anchorRow, anchorCol, rotation (0,90,180,270), value, lightDist }
+    let placedComponents = [];
+
+    // Active Bench Instruments
+    // Starts with ONLY ONE Regulated Power Supply (0 - 100 Volts) by default!
+    let benchInstruments = [];
+
+    // Jumper Wires
+    // Each: { id, fromNode, toNode, color }
+    let jumperWires = [];
+
+    // Recorded Data Points for Graph & Table
+    let recordedReadings = [];
+
+    // Dragging state for smooth component movement on breadboard
+    let draggingCompId = null;
+
+    // Fixed slot positions around the breadboard so extra instruments never overlap
+    const INSTRUMENT_SLOTS = [
+      { x: 20,  y: 260 }, // Slot 0: Left Top (Default Regulated Power Supply 1)
+      { x: 20,  y: 485 }, // Slot 1: Left Bottom (Extra RPS / Function Generator / Transformer)
+      { x: 240, y: 30  }, // Slot 2: Top Left (Voltmeter 1)
+      { x: 510, y: 30  }, // Slot 3: Top Center (Ammeter 1)
+      { x: 780, y: 30  }, // Slot 4: Top Right (Extra Voltmeter / Ammeter)
+      { x: 1030, y: 260 }, // Slot 5: Right Top (Decade Resistance Box / CRO)
+      { x: 1030, y: 485 }  // Slot 6: Right Bottom (Extra Instrument)
+    ];
+
+    /*************************************************************************
+     * 3. SPAWNING & MANAGING BENCH INSTRUMENTS (NO ABBREVIATIONS, 0-100V RPS)
+     *************************************************************************/
+    let instCounter = 1;
+
+    function createDefaultWorkbench() {
+      benchInstruments = [];
+      placedComponents = [];
+      jumperWires = [];
+      recordedReadings = [];
+      selectedEntity = null;
+      activeWireStartNode = null;
+      instCounter = 1;
+
+      // Always start with ONLY ONE Regulated Power Supply (0 - 100 Volts)
+      spawnInstrument('rps', { voltage: 0, maxV: 100 });
+      // Add 1 Voltmeter and 1 Ammeter for immediate convenience (user can remove or add more)
+      spawnInstrument('voltmeter', { range: '0-30V' });
+      spawnInstrument('ammeter', { range: '0-100mA' });
+    }
+
+    function findFreeSlotIndex() {
+      const used = new Set(benchInstruments.map(i => i.slotIndex));
+      for (let i = 0; i < INSTRUMENT_SLOTS.length; i++) {
+        if (!used.has(i)) return i;
+      }
+      return benchInstruments.length % INSTRUMENT_SLOTS.length;
+    }
+
+    function spawnInstrument(type, customProps = {}) {
+      const slotIndex = customProps.slotIndex !== undefined ? customProps.slotIndex : findFreeSlotIndex();
+      const slot = INSTRUMENT_SLOTS[slotIndex];
+      const id = `INST_${type.toUpperCase()}_${instCounter++}`;
+
+      let inst = {
+        id,
+        type,
+        slotIndex,
+        x: slot.x,
+        y: slot.y,
+        reading: 0,
+        readingSecondary: 0
+      };
+
+      if (type === 'rps') {
+        const rpsCount = benchInstruments.filter(i => i.type === 'rps').length + 1;
+        inst.name = `Regulated Power Supply ${rpsCount}`;
+        inst.subtitle = '0 to 100 Volts DC';
+        inst.voltage = customProps.voltage !== undefined ? customProps.voltage : 0.0;
+        inst.terminals = [
+          { id: `${id}_POS`, label: 'Positive (+)', short: '+', relX: 52, relY: 162, color: '#ef4444' },
+          { id: `${id}_NEG`, label: 'Negative (−)', short: '−', relX: 122, relY: 162, color: '#3b82f6' }
+        ];
+      } else if (type === 'voltmeter') {
+        const vmCount = benchInstruments.filter(i => i.type === 'voltmeter').length + 1;
+        inst.name = `Digital Voltmeter ${vmCount}`;
+        inst.range = customProps.range || '0-30V';
+        inst.subtitle = `Range: ${inst.range}`;
+        inst.terminals = [
+          { id: `${id}_POS`, label: 'Positive (+)', short: '+', relX: 65, relY: 145, color: '#ef4444' },
+          { id: `${id}_NEG`, label: 'Negative (−)', short: '−', relX: 155, relY: 145, color: '#3b82f6' }
+        ];
+      } else if (type === 'ammeter') {
+        const amCount = benchInstruments.filter(i => i.type === 'ammeter').length + 1;
+        inst.name = `Digital Ammeter ${amCount}`;
+        inst.range = customProps.range || '0-100mA';
+        inst.subtitle = `Range: ${inst.range}`;
+        inst.terminals = [
+          { id: `${id}_POS`, label: 'Positive (+)', short: '+', relX: 65, relY: 145, color: '#ef4444' },
+          { id: `${id}_NEG`, label: 'Negative (−)', short: '−', relX: 155, relY: 145, color: '#3b82f6' }
+        ];
+      } else if (type === 'drb') {
+        inst.name = 'Decade Resistance Box';
+        inst.resistance = customProps.resistance || 1000;
+        inst.subtitle = 'Variable Load Resistor';
+        inst.terminals = [
+          { id: `${id}_T1`, label: 'Terminal A', short: 'A', relX: 52, relY: 162, color: '#a855f7' },
+          { id: `${id}_T2`, label: 'Terminal B', short: 'B', relX: 122, relY: 162, color: '#a855f7' }
+        ];
+      } else if (type === 'funcgen') {
+        inst.name = 'Function Generator';
+        inst.amplitude = customProps.amplitude || 10.0; // Vp-p
+        inst.frequency = 1000; // 1 kHz
+        inst.subtitle = '1 kHz Sine Wave Source';
+        inst.terminals = [
+          { id: `${id}_POS`, label: 'Signal Out (+)', short: '~', relX: 52, relY: 162, color: '#ec4899' },
+          { id: `${id}_NEG`, label: 'Ground (−)', short: '⊥', relX: 122, relY: 162, color: '#3b82f6' }
+        ];
+      } else if (type === 'transformer') {
+        inst.name = 'Center-Tapped Transformer';
+        inst.secVoltage = 6.0; // 6V-0-6V RMS
+        inst.subtitle = 'Secondary: 6V - 0V - 6V AC';
+        inst.terminals = [
+          { id: `${id}_A`,  label: 'Secondary +6V', short: '6V', relX: 35, relY: 162, color: '#f59e0b' },
+          { id: `${id}_CT`, label: 'Center Tap 0V', short: 'CT', relX: 87, relY: 162, color: '#3b82f6' },
+          { id: `${id}_B`,  label: 'Secondary -6V', short: '6V', relX: 139, relY: 162, color: '#f59e0b' }
+        ];
+      } else if (type === 'cro') {
+        inst.name = 'Cathode Ray Oscilloscope';
+        inst.subtitle = 'Dual-Channel Scope';
+        inst.terminals = [
+          { id: `${id}_CH1`, label: 'Channel 1 (Input)', short: 'CH1', relX: 35, relY: 162, color: '#f59e0b' },
+          { id: `${id}_CH2`, label: 'Channel 2 (Output)', short: 'CH2', relX: 87, relY: 162, color: '#06b6d4' },
+          { id: `${id}_GND`, label: 'Common Ground', short: 'GND', relX: 139, relY: 162, color: '#3b82f6' }
+        ];
+        switchRightTab('cro');
+      }
+
+      benchInstruments.push(inst);
+      renderAll();
+      return inst;
+    }
+
+    function getInstrumentTerminalCoords(termId) {
+      for (const inst of benchInstruments) {
+        for (const t of inst.terminals) {
+          if (t.id === termId) {
+            return { x: inst.x + t.relX, y: inst.y + t.relY, color: t.color, inst, terminal: t };
+          }
+        }
+      }
+      return null;
+    }
+
+    /*************************************************************************
+     * 4. BREADBOARD COMPONENT PLACEMENT, PIN OFFSETS & 360° ROTATION
+     *************************************************************************/
+    let compCounter = 1;
+
+    // Returns pin offsets in (dRow, dCol) relative to anchor hole for rotation 0, 90, 180, 270
+    function getComponentPinOffsets(comp) {
+      const rot = ((comp.rotation % 360) + 360) % 360;
+      // 2-pin components span 4 columns horizontally at 0°
+      if (['diode_1n4001', 'zener_5v6', 'resistor', 'ldr_sensor'].includes(comp.type)) {
+        const span = 4;
+        if (rot === 0)   return [ { pin: 'P1', label: getPinLabel(comp.type, 0), dR: 0, dC: -2 }, { pin: 'P2', label: getPinLabel(comp.type, 1), dR: 0, dC: 2 } ];
+        if (rot === 90)  return [ { pin: 'P1', label: getPinLabel(comp.type, 0), dR: -2, dC: 0 }, { pin: 'P2', label: getPinLabel(comp.type, 1), dR: 2, dC: 0 } ];
+        if (rot === 180) return [ { pin: 'P1', label: getPinLabel(comp.type, 0), dR: 0, dC: 2 },  { pin: 'P2', label: getPinLabel(comp.type, 1), dR: 0, dC: -2 } ];
+        if (rot === 270) return [ { pin: 'P1', label: getPinLabel(comp.type, 0), dR: 2, dC: 0 },  { pin: 'P2', label: getPinLabel(comp.type, 1), dR: -2, dC: 0 } ];
+      }
+      // 3-pin Transistors (BJT BC107 & JFET BFW10) span 3 adjacent columns/rows so each pin sits in its own strip
+      if (comp.type === 'bjt_bc107') {
+        if (rot === 0)   return [ { pin: 'C', label: 'Collector (C)', dR: 0, dC: -1 }, { pin: 'B', label: 'Base (B)', dR: 0, dC: 0 }, { pin: 'E', label: 'Emitter (E)', dR: 0, dC: 1 } ];
+        if (rot === 90)  return [ { pin: 'C', label: 'Collector (C)', dR: -1, dC: 0 }, { pin: 'B', label: 'Base (B)', dR: 0, dC: 0 }, { pin: 'E', label: 'Emitter (E)', dR: 1, dC: 0 } ];
+        if (rot === 180) return [ { pin: 'C', label: 'Collector (C)', dR: 0, dC: 1 },  { pin: 'B', label: 'Base (B)', dR: 0, dC: 0 }, { pin: 'E', label: 'Emitter (E)', dR: 0, dC: -1 } ];
+        if (rot === 270) return [ { pin: 'C', label: 'Collector (C)', dR: 1, dC: 0 },  { pin: 'B', label: 'Base (B)', dR: 0, dC: 0 }, { pin: 'E', label: 'Emitter (E)', dR: -1, dC: 0 } ];
+      }
+      if (comp.type === 'jfet_bfw10') {
+        if (rot === 0)   return [ { pin: 'G', label: 'Gate (G)', dR: 0, dC: -1 }, { pin: 'D', label: 'Drain (D)', dR: 0, dC: 0 }, { pin: 'S', label: 'Source (S)', dR: 0, dC: 1 } ];
+        if (rot === 90)  return [ { pin: 'G', label: 'Gate (G)', dR: -1, dC: 0 }, { pin: 'D', label: 'Drain (D)', dR: 0, dC: 0 }, { pin: 'S', label: 'Source (S)', dR: 1, dC: 0 } ];
+        if (rot === 180) return [ { pin: 'G', label: 'Gate (G)', dR: 0, dC: 1 },  { pin: 'D', label: 'Drain (D)', dR: 0, dC: 0 }, { pin: 'S', label: 'Source (S)', dR: 0, dC: -1 } ];
+        if (rot === 270) return [ { pin: 'G', label: 'Gate (G)', dR: 1, dC: 0 },  { pin: 'D', label: 'Drain (D)', dR: 0, dC: 0 }, { pin: 'S', label: 'Source (S)', dR: -1, dC: 0 } ];
+      }
+      return [];
+    }
+
+    function getPinLabel(type, index) {
+      if (type === 'diode_1n4001' || type === 'zener_5v6') {
+        return index === 0 ? 'Anode (+)' : 'Cathode (−)';
+      }
+      return index === 0 ? 'Lead 1' : 'Lead 2';
+    }
+
+    const MAIN_ROWS = ['A','B','C','D','E','F','G','H','I','J'];
+
+    function resolveComponentPinHoles(comp) {
+      const rIdx = MAIN_ROWS.indexOf(comp.anchorRow);
+      const offsets = getComponentPinOffsets(comp);
+      return offsets.map(off => {
+        const targetRIdx = Math.max(0, Math.min(MAIN_ROWS.length - 1, rIdx + off.dR));
+        const targetCol = Math.max(1, Math.min(BB_COLS, comp.anchorCol + off.dC));
+        const rowName = MAIN_ROWS[targetRIdx];
+        const holeId = `BB_${rowName}_${targetCol}`;
+        const hole = breadboardHoles[holeId];
+        return {
+          pin: off.pin,
+          label: off.label,
+          holeId,
+          x: hole ? hole.x : 0,
+          y: hole ? hole.y : 0,
+          stripId: hole ? hole.stripId : ''
+        };
+      });
+    }
+
+    function spawnBreadboardComponent(type, value = 1000, customPos = null) {
+      const id = `COMP_${type.toUpperCase()}_${compCounter++}`;
+      // Choose a clean non-overlapping default spot on the breadboard
+      const count = placedComponents.length;
+      const defaultCol = customPos ? customPos.col : Math.min(26, 6 + (count * 6) % 22);
+      const defaultRow = customPos ? customPos.row : (count % 2 === 0 ? 'C' : 'G');
+      const rotation = customPos && customPos.rotation !== undefined ? customPos.rotation : 0;
+
+      let name = 'Electronic Component';
+      if (type === 'diode_1n4001') name = 'P-N Junction Diode (1N4001)';
+      if (type === 'zener_5v6')    name = 'Zener Diode (1Z5.6 / 5.6 Volts)';
+      if (type === 'resistor')     name = `Resistor (${formatOhmsFull(value)})`;
+      if (type === 'bjt_bc107')    name = 'Bipolar Junction Transistor (BC107)';
+      if (type === 'jfet_bfw10')   name = 'Junction Field Effect Transistor (BFW10)';
+      if (type === 'ldr_sensor')   name = 'Light Dependent Resistor';
+
+      const comp = {
+        id,
+        type,
+        name,
+        anchorRow: defaultRow,
+        anchorCol: defaultCol,
+        rotation,
+        value: value,
+        lightDist: 20 // cm for LDR
+      };
+
+      placedComponents.push(comp);
+      selectEntity('comp', id);
+      renderAll();
+      return comp;
+    }
+
+    function formatOhmsFull(ohms) {
+      if (ohms >= 1000) return `${ohms / 1000} Kilo-Ohm${ohms / 1000 > 1 ? 's' : ''}`;
+      return `${ohms} Ohms`;
+    }
+
+    /*************************************************************************
+     * 5. EFFORTLESS BEZIER JUMPER WIRING & INTERACTION
+     *************************************************************************/
+    function handleTerminalOrHoleClick(nodeId) {
+      if (!activeWireStartNode) {
+        activeWireStartNode = nodeId;
+        document.getElementById('wireStatusBadge').textContent = 'Select target hole/terminal (ESC to cancel)';
+        document.getElementById('wireStatusBadge').className = 'text-[11px] text-amber-400 font-bold animate-pulse';
+      } else {
+        if (activeWireStartNode !== nodeId) {
+          // Avoid duplicate identical wires
+          const exists = jumperWires.some(w =>
+            (w.fromNode === activeWireStartNode && w.toNode === nodeId) ||
+            (w.fromNode === nodeId && w.toNode === activeWireStartNode)
+          );
+          if (!exists) {
+            jumperWires.push({
+              id: `WIRE_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              fromNode: activeWireStartNode,
+              toNode: nodeId,
+              color: selectedWireColor
+            });
+          }
+        }
+        cancelActiveWire();
+        renderAll();
+      }
+    }
+
+    function cancelActiveWire() {
+      activeWireStartNode = null;
+      document.getElementById('activeWirePreview').classList.add('hidden');
+      document.getElementById('wireStatusBadge').textContent = 'Click any hole to wire';
+      document.getElementById('wireStatusBadge').className = 'text-[11px] text-sky-400 font-medium';
+    }
+
+    function getNodeCoordinates(nodeId) {
+      if (breadboardHoles[nodeId]) {
+        return { x: breadboardHoles[nodeId].x, y: breadboardHoles[nodeId].y };
+      }
+      const term = getInstrumentTerminalCoords(nodeId);
+      if (term) return { x: term.x, y: term.y };
+      return null;
+    }
+
+    function computeSmoothWirePath(p1, p2) {
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const dist = Math.hypot(dx, dy);
+      const arcLift = Math.min(85, Math.max(24, dist * 0.22));
+      const cx1 = p1.x + dx * 0.25;
+      const cy1 = Math.min(p1.y, p2.y) - arcLift;
+      const cx2 = p1.x + dx * 0.75;
+      const cy2 = Math.min(p1.y, p2.y) - arcLift;
+      return `M ${p1.x} ${p1.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${p2.x} ${p2.y}`;
+    }
+
+    /*************************************************************************
+     * 6. RENDERING ENGINE (INSTRUMENTS, COMPONENTS, WIRES, CONTROLS)
+     *************************************************************************/
+    function renderAll() {
+      renderInstrumentsSVG();
+      renderComponentsSVG();
+      renderWiresSVG();
+      renderBottomControlsDock();
+      updateSelectionInspector();
+      runLiveCircuitSimulation();
+    }
+
+    function renderInstrumentsSVG() {
+      const layer = document.getElementById('instrumentsLayer');
+      layer.innerHTML = '';
+
+      benchInstruments.forEach(inst => {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('transform', `translate(${inst.x}, ${inst.y})`);
+
+        const isSelected = selectedEntity && selectedEntity.kind === 'inst' && selectedEntity.id === inst.id;
+        const width = (inst.type === 'voltmeter' || inst.type === 'ammeter') ? 220 : 174;
+        const height = (inst.type === 'voltmeter' || inst.type === 'ammeter') ? 168 : 185;
+
+        let borderColor = isSelected ? '#38bdf8' : '#334155';
+        let accentColor = '#38bdf8';
+        if (inst.type === 'rps') accentColor = '#f59e0b';
+        if (inst.type === 'ammeter') accentColor = '#10b981';
+        if (inst.type === 'drb') accentColor = '#a855f7';
+        if (inst.type === 'funcgen') accentColor = '#ec4899';
+        if (inst.type === 'transformer') accentColor = '#6366f1';
+        if (inst.type === 'cro') accentColor = '#14b8a6';
+
+        // Instrument Card Body
+        const body = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        body.setAttribute('width', width);
+        body.setAttribute('height', height);
+        body.setAttribute('rx', 14);
+        body.setAttribute('fill', '#111827');
+        body.setAttribute('stroke', borderColor);
+        body.setAttribute('stroke-width', isSelected ? '2.5' : '1.8');
+        body.setAttribute('filter', 'url(#compShadow)');
+        body.style.cursor = 'pointer';
+        body.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectEntity('inst', inst.id);
+        });
+        g.appendChild(body);
+
+        // Top Accent Header Bar
+        const topBar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        topBar.setAttribute('x', 0);
+        topBar.setAttribute('y', 0);
+        topBar.setAttribute('width', width);
+        topBar.setAttribute('height', 6);
+        topBar.setAttribute('rx', 3);
+        topBar.setAttribute('fill', accentColor);
+        g.appendChild(topBar);
+
+        // Full Title & Subtitle
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        title.setAttribute('x', width / 2);
+        title.setAttribute('y', 24);
+        title.setAttribute('text-anchor', 'middle');
+        title.setAttribute('fill', '#f8fafc');
+        title.setAttribute('font-size', '11');
+        title.setAttribute('font-weight', '700');
+        title.textContent = inst.name;
+        g.appendChild(title);
+
+        const sub = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        sub.setAttribute('x', width / 2);
+        sub.setAttribute('y', 39);
+        sub.setAttribute('text-anchor', 'middle');
+        sub.setAttribute('fill', '#94a3b8');
+        sub.setAttribute('font-size', '9.5');
+        sub.textContent = inst.subtitle;
+        g.appendChild(sub);
+
+        // Digital Readout Screen
+        const screen = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        screen.setAttribute('x', 14);
+        screen.setAttribute('y', 48);
+        screen.setAttribute('width', width - 28);
+        screen.setAttribute('height', 54);
+        screen.setAttribute('rx', 8);
+        screen.setAttribute('fill', '#020617');
+        screen.setAttribute('stroke', '#1e293b');
+        screen.setAttribute('stroke-width', '1.5');
+        g.appendChild(screen);
+
+        const readoutText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        readoutText.setAttribute('id', `svgReadout_${inst.id}`);
+        readoutText.setAttribute('x', width / 2);
+        readoutText.setAttribute('y', 82);
+        readoutText.setAttribute('text-anchor', 'middle');
+        readoutText.setAttribute('fill', accentColor);
+        readoutText.setAttribute('font-size', '18');
+        readoutText.setAttribute('font-weight', '700');
+        readoutText.setAttribute('font-family', 'JetBrains Mono');
+
+        if (inst.type === 'rps') {
+          readoutText.textContent = `${inst.voltage.toFixed(2)} V`;
+        } else if (inst.type === 'voltmeter') {
+          readoutText.textContent = `${inst.reading.toFixed(2)} V`;
+        } else if (inst.type === 'ammeter') {
+          const unit = inst.range.includes('µA') ? 'µA' : 'mA';
+          readoutText.textContent = `${inst.reading.toFixed(2)} ${unit}`;
+        } else if (inst.type === 'drb') {
+          readoutText.textContent = `${inst.resistance} Ω`;
+        } else if (inst.type === 'funcgen') {
+          readoutText.textContent = `${inst.amplitude.toFixed(1)} Vpp`;
+        } else if (inst.type === 'transformer') {
+          readoutText.textContent = `6V-0-6V AC`;
+        } else if (inst.type === 'cro') {
+          readoutText.textContent = `LIVE SCOPE`;
+        }
+        g.appendChild(readoutText);
+
+        // Terminals with full labels
+        inst.terminals.forEach(t => {
+          const tg = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          tg.setAttribute('transform', `translate(${t.relX}, ${t.relY})`);
+
+          const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          lbl.setAttribute('x', 0);
+          lbl.setAttribute('y', -18);
+          lbl.setAttribute('text-anchor', 'middle');
+          lbl.setAttribute('fill', '#cbd5e1');
+          lbl.setAttribute('font-size', '9');
+          lbl.setAttribute('font-weight', '600');
+          lbl.textContent = t.label;
+          tg.appendChild(lbl);
+
+          const outerRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          outerRing.setAttribute('r', 11);
+          outerRing.setAttribute('fill', t.color);
+          outerRing.setAttribute('stroke', '#f8fafc');
+          outerRing.setAttribute('stroke-width', '2');
+          outerRing.classList.add('inst-terminal');
+
+          outerRing.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            handleTerminalOrHoleClick(t.id);
+          });
+
+          const innerHole = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          innerHole.setAttribute('r', 4.5);
+          innerHole.setAttribute('fill', '#0f172a');
+          innerHole.setAttribute('pointer-events', 'none');
+
+          tg.appendChild(outerRing);
+          tg.appendChild(innerHole);
+          g.appendChild(tg);
+        });
+
+        layer.appendChild(g);
+      });
+    }
+
+    function renderComponentsSVG() {
+      const layer = document.getElementById('componentsLayer');
+      layer.innerHTML = '';
+
+      placedComponents.forEach(comp => {
+        const pins = resolveComponentPinHoles(comp);
+        const anchorHole = breadboardHoles[`BB_${comp.anchorRow}_${comp.anchorCol}`];
+        if (!anchorHole) return;
+
+        const isSelected = selectedEntity && selectedEntity.kind === 'comp' && selectedEntity.id === comp.id;
+
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.classList.add('placed-comp');
+        if (isSelected) g.classList.add('selected');
+        g.setAttribute('filter', 'url(#compShadow)');
+
+        // Draw metal leads from component body center to each snapped breadboard hole
+        pins.forEach(p => {
+          const lead = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          lead.setAttribute('x1', anchorHole.x);
+          lead.setAttribute('y1', anchorHole.y);
+          lead.setAttribute('x2', p.x);
+          lead.setAttribute('y2', p.y);
+          lead.setAttribute('stroke', '#cbd5e1');
+          lead.setAttribute('stroke-width', '3.2');
+          lead.setAttribute('stroke-linecap', 'round');
+          g.appendChild(lead);
+
+          // Pin insertion collar
+          const pad = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          pad.setAttribute('cx', p.x);
+          pad.setAttribute('cy', p.y);
+          pad.setAttribute('r', 5.2);
+          pad.setAttribute('fill', '#38bdf8');
+          pad.setAttribute('stroke', '#0f172a');
+          pad.setAttribute('stroke-width', '1.5');
+          pad.style.cursor = 'crosshair';
+          pad.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            handleTerminalOrHoleClick(p.holeId);
+          });
+          g.appendChild(pad);
+
+          // Pin hover badge (Anode / Cathode / Collector / Base / Emitter / Gate / Drain / Source)
+          const pinBadge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          pinBadge.setAttribute('x', p.x);
+          pinBadge.setAttribute('y', p.y - 9);
+          pinBadge.setAttribute('text-anchor', 'middle');
+          pinBadge.setAttribute('fill', '#0f172a');
+          pinBadge.setAttribute('stroke', '#f8fafc');
+          pinBadge.setAttribute('stroke-width', '2.5');
+          pinBadge.setAttribute('paint-order', 'stroke');
+          pinBadge.setAttribute('font-size', '9');
+          pinBadge.setAttribute('font-weight', '700');
+          pinBadge.setAttribute('pointer-events', 'none');
+          pinBadge.textContent = p.pin === 'P1' || p.pin === 'P2'
+            ? (comp.type.includes('diode') || comp.type.includes('zener') ? (p.pin === 'P1' ? 'A (+)' : 'K (−)') : '')
+            : p.pin;
+          g.appendChild(pinBadge);
+        });
+
+        // Component Body Group rotated around anchorHole
+        const bodyGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        bodyGroup.setAttribute('transform', `translate(${anchorHole.x}, ${anchorHole.y}) rotate(${comp.rotation})`);
+
+        if (comp.type === 'diode_1n4001') {
+          // Black cylinder with prominent silver Cathode band on right (+X)
+          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          rect.setAttribute('x', -26);
+          rect.setAttribute('y', -9);
+          rect.setAttribute('width', 52);
+          rect.setAttribute('height', 18);
+          rect.setAttribute('rx', 3);
+          rect.setAttribute('fill', '#0f172a');
+          rect.setAttribute('stroke', isSelected ? '#38bdf8' : '#64748b');
+          rect.setAttribute('stroke-width', '1.8');
+          bodyGroup.appendChild(rect);
+
+          const band = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          band.setAttribute('x', 13);
+          band.setAttribute('y', -9);
+          band.setAttribute('width', 7);
+          band.setAttribute('height', 18);
+          band.setAttribute('fill', '#e2e8f0');
+          bodyGroup.appendChild(band);
+
+          const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          txt.setAttribute('x', -5);
+          txt.setAttribute('y', 3.5);
+          txt.setAttribute('text-anchor', 'middle');
+          txt.setAttribute('fill', '#f8fafc');
+          txt.setAttribute('font-size', '8.5');
+          txt.setAttribute('font-weight', '700');
+          txt.setAttribute('font-family', 'JetBrains Mono');
+          txt.textContent = '1N4001';
+          bodyGroup.appendChild(txt);
+
+        } else if (comp.type === 'zener_5v6') {
+          // Glass orange body with black cathode band on right (+X)
+          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          rect.setAttribute('x', -25);
+          rect.setAttribute('y', -8.5);
+          rect.setAttribute('width', 50);
+          rect.setAttribute('height', 17);
+          rect.setAttribute('rx', 4);
+          rect.setAttribute('fill', '#ea580c');
+          rect.setAttribute('stroke', isSelected ? '#38bdf8' : '#fdba74');
+          rect.setAttribute('stroke-width', '1.6');
+          bodyGroup.appendChild(rect);
+
+          const band = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          band.setAttribute('x', 13);
+          band.setAttribute('y', -8.5);
+          band.setAttribute('width', 6);
+          band.setAttribute('height', 17);
+          band.setAttribute('fill', '#0f172a');
+          bodyGroup.appendChild(band);
+
+          const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          txt.setAttribute('x', -4);
+          txt.setAttribute('y', 3.5);
+          txt.setAttribute('text-anchor', 'middle');
+          txt.setAttribute('fill', '#fff');
+          txt.setAttribute('font-size', '8.5');
+          txt.setAttribute('font-weight', '700');
+          txt.setAttribute('font-family', 'JetBrains Mono');
+          txt.textContent = '5.6V';
+          bodyGroup.appendChild(txt);
+
+        } else if (comp.type === 'resistor') {
+          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          rect.setAttribute('x', -26);
+          rect.setAttribute('y', -8.5);
+          rect.setAttribute('width', 52);
+          rect.setAttribute('height', 17);
+          rect.setAttribute('rx', 5);
+          rect.setAttribute('fill', '#fde68a');
+          rect.setAttribute('stroke', isSelected ? '#38bdf8' : '#b45309');
+          rect.setAttribute('stroke-width', '1.6');
+          bodyGroup.appendChild(rect);
+
+          // Realistic color bands
+          const colors = getResistorColorBands(comp.value);
+          [-15, -6, 3, 14].forEach((bx, idx) => {
+            const b = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            b.setAttribute('x', bx);
+            b.setAttribute('y', -8.5);
+            b.setAttribute('width', 4);
+            b.setAttribute('height', 17);
+            b.setAttribute('fill', colors[idx]);
+            bodyGroup.appendChild(b);
+          });
+
+          const valLbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          valLbl.setAttribute('x', 0);
+          valLbl.setAttribute('y', -12);
+          valLbl.setAttribute('text-anchor', 'middle');
+          valLbl.setAttribute('fill', '#0f172a');
+          valLbl.setAttribute('font-size', '9.5');
+          valLbl.setAttribute('font-weight', '800');
+          valLbl.textContent = comp.value >= 1000 ? `${comp.value/1000}kΩ` : `${comp.value}Ω`;
+          bodyGroup.appendChild(valLbl);
+
+        } else if (comp.type === 'bjt_bc107' || comp.type === 'jfet_bfw10') {
+          const isBjt = comp.type === 'bjt_bc107';
+          const can = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          can.setAttribute('x', -28);
+          can.setAttribute('y', -13);
+          can.setAttribute('width', 56);
+          can.setAttribute('height', 26);
+          can.setAttribute('rx', 8);
+          can.setAttribute('fill', isBjt ? '#1e293b' : '#0f172a');
+          can.setAttribute('stroke', isSelected ? '#38bdf8' : (isBjt ? '#cbd5e1' : '#38bdf8'));
+          can.setAttribute('stroke-width', '2');
+          bodyGroup.appendChild(can);
+
+          const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          txt.setAttribute('x', 0);
+          txt.setAttribute('y', 4);
+          txt.setAttribute('text-anchor', 'middle');
+          txt.setAttribute('fill', isBjt ? '#f8fafc' : '#38bdf8');
+          txt.setAttribute('font-size', '10');
+          txt.setAttribute('font-weight', '700');
+          txt.setAttribute('font-family', 'JetBrains Mono');
+          txt.textContent = isBjt ? 'BC107' : 'BFW10';
+          bodyGroup.appendChild(txt);
+
+        } else if (comp.type === 'ldr_sensor') {
+          const disc = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          disc.setAttribute('cx', 0);
+          disc.setAttribute('cy', 0);
+          disc.setAttribute('r', 14);
+          disc.setAttribute('fill', '#fef3c7');
+          disc.setAttribute('stroke', '#dc2626');
+          disc.setAttribute('stroke-width', '2.2');
+          bodyGroup.appendChild(disc);
+
+          const zig = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          zig.setAttribute('d', 'M-8 -5 H8 L-8 0 H8 L-8 5 H8');
+          zig.setAttribute('stroke', '#dc2626');
+          zig.setAttribute('stroke-width', '1.6');
+          zig.setAttribute('fill', 'none');
+          bodyGroup.appendChild(zig);
+
+          const distBadge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          distBadge.setAttribute('x', 0);
+          distBadge.setAttribute('y', -18);
+          distBadge.setAttribute('text-anchor', 'middle');
+          distBadge.setAttribute('fill', '#0f172a');
+          distBadge.setAttribute('font-size', '9.5');
+          distBadge.setAttribute('font-weight', '800');
+          distBadge.textContent = `Lamp: ${comp.lightDist} cm`;
+          bodyGroup.appendChild(distBadge);
+        }
+
+        // Dragging & Selecting Component
+        bodyGroup.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          selectEntity('comp', comp.id);
+          draggingCompId = comp.id;
+        });
+
+        // Double click rotates 90 degrees smoothly
+        bodyGroup.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          comp.rotation = (comp.rotation + 90) % 360;
+          renderAll();
+        });
+
+        g.appendChild(bodyGroup);
+        layer.appendChild(g);
+      });
+    }
+
+    function getResistorColorBands(ohms) {
+      if (ohms === 560)    return ['#10b981', '#2563eb', '#78350f', '#d97706']; // Green Blue Brown Gold
+      if (ohms === 1000)   return ['#78350f', '#0f172a', '#dc2626', '#d97706']; // Brown Black Red Gold
+      if (ohms === 10000)  return ['#78350f', '#0f172a', '#ea580c', '#d97706']; // Brown Black Orange Gold
+      if (ohms === 100000) return ['#78350f', '#0f172a', '#facc15', '#d97706']; // Brown Black Yellow Gold
+      return ['#78350f', '#0f172a', '#dc2626', '#d97706'];
+    }
+
+    function renderWiresSVG() {
+      const layer = document.getElementById('wiresLayer');
+      layer.innerHTML = '';
+
+      jumperWires.forEach(w => {
+        const p1 = getNodeCoordinates(w.fromNode);
+        const p2 = getNodeCoordinates(w.toNode);
+        if (!p1 || !p2) return;
+
+        const isSelected = selectedEntity && selectedEntity.kind === 'wire' && selectedEntity.id === w.id;
+        const d = computeSmoothWirePath(p1, p2);
+
+        // Wire shadow casing
+        const shadowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        shadowPath.setAttribute('d', d);
+        shadowPath.setAttribute('fill', 'none');
+        shadowPath.setAttribute('stroke', 'rgba(0,0,0,0.45)');
+        shadowPath.setAttribute('stroke-width', '6.5');
+        shadowPath.setAttribute('stroke-linecap', 'round');
+        shadowPath.setAttribute('pointer-events', 'none');
+        layer.appendChild(shadowPath);
+
+        // Colored insulated wire
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', w.color);
+        path.setAttribute('stroke-width', '4.2');
+        path.setAttribute('stroke-linecap', 'round');
+        path.classList.add('wire-path');
+        if (isSelected) path.classList.add('selected');
+
+        path.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectEntity('wire', w.id);
+        });
+
+        // Right-click deletes wire immediately
+        path.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          jumperWires = jumperWires.filter(item => item.id !== w.id);
+          if (selectedEntity && selectedEntity.id === w.id) selectedEntity = null;
+          renderAll();
+        });
+
+        layer.appendChild(path);
+
+        // Wire plug heads at both ends
+        [p1, p2].forEach(pt => {
+          const plug = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          plug.setAttribute('cx', pt.x);
+          plug.setAttribute('cy', pt.y);
+          plug.setAttribute('r', 4.5);
+          plug.setAttribute('fill', w.color);
+          plug.setAttribute('stroke', '#ffffff');
+          plug.setAttribute('stroke-width', '1.5');
+          plug.setAttribute('pointer-events', 'none');
+          layer.appendChild(plug);
+        });
+      });
+    }
+
+    function renderBottomControlsDock() {
+      const dock = document.getElementById('instrumentControlsDock');
+      dock.innerHTML = '';
+
+      // 1. Controls for every Regulated Power Supply (0 - 100 Volts)
+      benchInstruments.filter(i => i.type === 'rps').forEach(rps => {
+        const card = document.createElement('div');
+        card.className = 'min-w-[275px] bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between shrink-0';
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-amber-400">${rps.name} (0 - 100V)</span>
+            <span id="dockVal_${rps.id}" class="text-xs font-mono-tech font-bold text-white bg-slate-900 px-2 py-0.5 rounded border border-slate-800">${rps.voltage.toFixed(2)} Volts</span>
+          </div>
+          <div class="flex items-center gap-2 my-1">
+            <input type="range" min="0" max="100" step="0.1" value="${rps.voltage}" class="flex-1 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+              oninput="updateRpsVoltage('${rps.id}', parseFloat(this.value))" />
+          </div>
+          <div class="flex items-center justify-between gap-1">
+            <button onclick="stepRpsVoltage('${rps.id}', -1)" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-[10px] text-slate-300">-1V</button>
+            <button onclick="stepRpsVoltage('${rps.id}', -0.1)" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-[10px] text-slate-300">-0.1V</button>
+            <button onclick="updateRpsVoltage('${rps.id}', 0)" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-[10px] text-rose-300">0V</button>
+            <button onclick="stepRpsVoltage('${rps.id}', 0.1)" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-[10px] text-sky-300">+0.1V</button>
+            <button onclick="stepRpsVoltage('${rps.id}', 1)" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-[10px] text-sky-300">+1V</button>
+          </div>
+        `;
+        dock.appendChild(card);
+      });
+
+      // 2. Controls for Decade Resistance Box (if present)
+      benchInstruments.filter(i => i.type === 'drb').forEach(drb => {
+        const card = document.createElement('div');
+        card.className = 'min-w-[250px] bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between shrink-0';
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-purple-400">Decade Resistance Box</span>
+            <span id="dockVal_${drb.id}" class="text-xs font-mono-tech font-bold text-white bg-slate-900 px-2 py-0.5 rounded border border-slate-800">${drb.resistance} Ohms</span>
+          </div>
+          <input type="range" min="100" max="10000" step="100" value="${drb.resistance}" class="w-full h-1.5 bg-slate-800 rounded-lg cursor-pointer my-1"
+            oninput="updateDrbResistance('${drb.id}', parseInt(this.value))" />
+          <div class="flex justify-between text-[10px] text-slate-400">
+            <span>100 Ohms</span>
+            <span>Load Regulation Control</span>
+            <span>10 Kilo-Ohms</span>
+          </div>
+        `;
+        dock.appendChild(card);
+      });
+
+      // 3. Controls for Function Generator (if present)
+      benchInstruments.filter(i => i.type === 'funcgen').forEach(fg => {
+        const card = document.createElement('div');
+        card.className = 'min-w-[240px] bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between shrink-0';
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-pink-400">Function Generator (1 kHz)</span>
+            <span id="dockVal_${fg.id}" class="text-xs font-mono-tech font-bold text-white bg-slate-900 px-2 py-0.5 rounded border border-slate-800">${fg.amplitude.toFixed(1)} Vp-p</span>
+          </div>
+          <input type="range" min="2" max="20" step="0.5" value="${fg.amplitude}" class="w-full h-1.5 bg-slate-800 rounded-lg cursor-pointer my-1"
+            oninput="updateFuncGenAmp('${fg.id}', parseFloat(this.value))" />
+          <div class="flex justify-between text-[10px] text-slate-400">
+            <span>2 Vp-p</span>
+            <span>Sine Wave Input</span>
+            <span>20 Vp-p</span>
+          </div>
+        `;
+        dock.appendChild(card);
+      });
+
+      // 4. Controls for Light Dependent Resistor Lamp Distance (if LDR is placed on board)
+      placedComponents.filter(c => c.type === 'ldr_sensor').forEach(ldr => {
+        const card = document.createElement('div');
+        card.className = 'min-w-[250px] bg-slate-950 border border-amber-500/40 rounded-xl p-2.5 flex flex-col justify-between shrink-0';
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-amber-300">Light Source Distance (Lamp)</span>
+            <span class="text-xs font-mono-tech font-bold text-white bg-slate-900 px-2 py-0.5 rounded border border-slate-800">${ldr.lightDist} cm</span>
+          </div>
+          <input type="range" min="5" max="100" step="5" value="${ldr.lightDist}" class="w-full h-1.5 bg-slate-800 rounded-lg cursor-pointer my-1"
+            oninput="updateLdrDistance('${ldr.id}', parseInt(this.value))" />
+          <div class="flex justify-between text-[10px] text-slate-400">
+            <span>5 cm (Bright)</span>
+            <span>Illuminance Control</span>
+            <span>100 cm (Dark)</span>
+          </div>
+        `;
+        dock.appendChild(card);
+      });
+    }
+
+    // Fast non-destructive slider handlers so dragging a slider is 60fps silky-smooth
+    window.updateRpsVoltage = function(id, val) {
+      const rps = benchInstruments.find(i => i.id === id);
+      if (!rps) return;
+      rps.voltage = Math.max(0, Math.min(100, Math.round(val * 100) / 100));
+      const dockLbl = document.getElementById(`dockVal_${id}`);
+      if (dockLbl) dockLbl.textContent = `${rps.voltage.toFixed(2)} Volts`;
+      const svgLbl = document.getElementById(`svgReadout_${id}`);
+      if (svgLbl) svgLbl.textContent = `${rps.voltage.toFixed(2)} V`;
+      runLiveCircuitSimulation();
+    };
+
+    window.stepRpsVoltage = function(id, delta) {
+      const rps = benchInstruments.find(i => i.id === id);
+      if (!rps) return;
+      updateRpsVoltage(id, rps.voltage + delta);
+      renderBottomControlsDock();
+    };
+
+    window.updateDrbResistance = function(id, val) {
+      const drb = benchInstruments.find(i => i.id === id);
+      if (!drb) return;
+      drb.resistance = val;
+      const dockLbl = document.getElementById(`dockVal_${id}`);
+      if (dockLbl) dockLbl.textContent = `${drb.resistance} Ohms`;
+      const svgLbl = document.getElementById(`svgReadout_${id}`);
+      if (svgLbl) svgLbl.textContent = `${drb.resistance} Ω`;
+      runLiveCircuitSimulation();
+    };
+
+    window.updateFuncGenAmp = function(id, val) {
+      const fg = benchInstruments.find(i => i.id === id);
+      if (!fg) return;
+      fg.amplitude = val;
+      const dockLbl = document.getElementById(`dockVal_${id}`);
+      if (dockLbl) dockLbl.textContent = `${fg.amplitude.toFixed(1)} Vp-p`;
+      const svgLbl = document.getElementById(`svgReadout_${id}`);
+      if (svgLbl) svgLbl.textContent = `${fg.amplitude.toFixed(1)} Vpp`;
+      runLiveCircuitSimulation();
+    };
+
+    window.updateLdrDistance = function(id, dist) {
+      const ldr = placedComponents.find(c => c.id === id);
+      if (!ldr) return;
+      ldr.lightDist = dist;
+      renderAll();
+    };
+
+    /*************************************************************************
+     * 7. SELECTION, ROTATION & CUSTOMIZATION INSPECTOR
+     *************************************************************************/
+    function selectEntity(kind, id) {
+      selectedEntity = { kind, id };
+      updateSelectionInspector();
+      renderComponentsSVG();
+      renderWiresSVG();
+      renderInstrumentsSVG();
+    }
+
+    function updateSelectionInspector() {
+      const box = document.getElementById('selectionInspector');
+      const title = document.getElementById('selectedItemTitle');
+      const angle = document.getElementById('selectedItemAngle');
+      const rotBtn = document.getElementById('btnRotateSelected');
+      const paramBox = document.getElementById('selectedParamContainer');
+
+      if (!selectedEntity) {
+        box.classList.add('hidden');
+        return;
+      }
+      box.classList.remove('hidden');
+      paramBox.innerHTML = '';
+      paramBox.classList.add('hidden');
+
+      if (selectedEntity.kind === 'comp') {
+        const comp = placedComponents.find(c => c.id === selectedEntity.id);
+        if (!comp) { box.classList.add('hidden'); return; }
+        title.textContent = comp.name;
+        angle.textContent = `${comp.rotation}°`;
+        rotBtn.classList.remove('hidden');
+
+        if (comp.type === 'resistor') {
+          paramBox.classList.remove('hidden');
+          paramBox.innerHTML = `
+            <label class="text-[10px] text-sky-300 font-semibold block mb-1">Customize Resistance (Ohms):</label>
+            <div class="flex gap-1.5">
+              <input type="number" min="10" max="1000000" value="${comp.value}" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono-tech"
+                onchange="updateSelectedResistorValue(parseFloat(this.value))" />
+            </div>
+          `;
+        }
+      } else if (selectedEntity.kind === 'wire') {
+        title.textContent = 'Selected Jumper Wire';
+        angle.textContent = 'Wire';
+        rotBtn.classList.add('hidden');
+      } else if (selectedEntity.kind === 'inst') {
+        const inst = benchInstruments.find(i => i.id === selectedEntity.id);
+        if (!inst) { box.classList.add('hidden'); return; }
+        title.textContent = inst.name;
+        angle.textContent = 'Bench';
+        rotBtn.classList.add('hidden');
+
+        if (inst.type === 'voltmeter' || inst.type === 'ammeter') {
+          paramBox.classList.remove('hidden');
+          const options = inst.type === 'voltmeter'
+            ? ['0-1V', '0-10V', '0-30V', '0-100V']
+            : ['0-100µA', '0-1mA', '0-10mA', '0-25mA', '0-100mA'];
+          paramBox.innerHTML = `
+            <label class="text-[10px] text-sky-300 font-semibold block mb-1">Select Meter Range:</label>
+            <select onchange="updateMeterRange('${inst.id}', this.value)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white">
+              ${options.map(o => `<option value="${o}" ${inst.range === o ? 'selected' : ''}>${o}</option>`).join('')}
+            </select>
+          `;
+        }
+      }
+    }
+
+    window.updateSelectedResistorValue = function(val) {
+      if (!selectedEntity || selectedEntity.kind !== 'comp') return;
+      const comp = placedComponents.find(c => c.id === selectedEntity.id);
+      if (comp && val > 0) {
+        comp.value = val;
+        comp.name = `Resistor (${formatOhmsFull(val)})`;
+        renderAll();
+      }
+    };
+
+    window.updateMeterRange = function(instId, newRange) {
+      const inst = benchInstruments.find(i => i.id === instId);
+      if (inst) {
+        inst.range = newRange;
+        inst.subtitle = `Range: ${newRange}`;
+        renderAll();
+      }
+    };
+
+    /*************************************************************************
+     * 8. TOPOLOGICAL NETLIST GRAPH ANALYZER & CIRCUIT VERIFIER
+     *************************************************************************/
+    // Builds equivalence classes (electrical nets) from breadboard strips + jumper wires
+    function buildElectricalNets() {
+      const parent = {};
+      function find(x) {
+        if (parent[x] === undefined) parent[x] = x;
+        if (parent[x] !== x) parent[x] = find(parent[x]);
+        return parent[x];
+      }
+      function union(a, b) {
+        const ra = find(a);
+        const rb = find(b);
+        if (ra !== rb) parent[ra] = rb;
+      }
+
+      // 1. Each breadboard hole belongs to its internal strip
+      Object.values(breadboardHoles).forEach(h => {
+        union(h.id, h.stripId);
+      });
+
+      // 2. Each jumper wire unites its two endpoints
+      jumperWires.forEach(w => {
+        union(w.fromNode, w.toNode);
+      });
+
+      // 3. Ammeters and closed switches have near-zero internal impedance,
+      //    Wait: for strict topological verification we check ammeter terminals explicitly,
+      //    and we also build a "DC path net" where ammeters pass current between their + and - terminals.
+      return { find, union };
+    }
+
+    // Verifies custom breadboard circuit topology regardless of which columns the user chose!
+    function verifyCurrentCircuit() {
+      const { find } = buildElectricalNets();
+      const diagnostics = [];
+      let allPassed = true;
+
+      function pass(msg) { diagnostics.push({ ok: true, msg }); }
+      function fail(msg) { diagnostics.push({ ok: false, msg }); allPassed = false; }
+
+      // Helper to get net ID of a component pin
+      function compPinNet(comp, pinIndexOrName) {
+        const pins = resolveComponentPinHoles(comp);
+        if (typeof pinIndexOrName === 'number') {
+          return pins[pinIndexOrName] ? find(pins[pinIndexOrName].holeId) : null;
+        }
+        const found = pins.find(p => p.pin === pinIndexOrName);
+        return found ? find(found.holeId) : null;
+      }
+
+      // Helper to check if two nets are identical or bridged through an Ammeter
+      function areNetsConnectedOrViaAmmeter(netA, netB) {
+        if (!netA || !netB) return false;
+        if (netA === netB) return true;
+        for (const am of benchInstruments.filter(i => i.type === 'ammeter')) {
+          const amPos = find(`${am.id}_POS`);
+          const amNeg = find(`${am.id}_NEG`);
+          if ((netA === amPos && netB === amNeg) || (netA === amNeg && netB === amPos)) return true;
+        }
+        return false;
+      }
+
+      if (currentExperiment === 'custom') {
+        pass('Custom Sandbox Mode is active. Wire any components freely and observe real-time readings.');
+        showDiagnosticBanner('Custom Circuit Sandbox Analysis', diagnostics, true);
+        return true;
+      }
+
+      const rpsList = benchInstruments.filter(i => i.type === 'rps');
+      const vmList  = benchInstruments.filter(i => i.type === 'voltmeter');
+      const amList  = benchInstruments.filter(i => i.type === 'ammeter');
+      const resistors = placedComponents.filter(c => c.type === 'resistor');
+
+      // Check basic wiring presence
+      if (jumperWires.length === 0) {
+        fail('No jumper wires detected on the breadboard. Click any instrument terminal or breadboard hole to connect wires.');
+        showDiagnosticBanner('Circuit Incomplete', diagnostics, false);
+        return false;
+      }
+
+      if (currentExperiment === 'exp1' || currentExperiment === 'exp2') {
+        const isZener = currentExperiment === 'exp2';
+        const diodeType = isZener ? 'zener_5v6' : 'diode_1n4001';
+        const diodeName = isZener ? 'Zener Diode (5.6 Volts)' : 'P-N Junction Diode (1N4001)';
+        const diode = placedComponents.find(c => c.type === diodeType);
+
+        if (!diode) {
+          fail(`Missing ${diodeName} on the breadboard. Click it in the left drawer to place it.`);
+        } else {
+          const anodeNet = compPinNet(diode, 0);
+          const cathodeNet = compPinNet(diode, 1);
+          if (anodeNet === cathodeNet) {
+            fail(`${diodeName} Anode and Cathode are plugged into the same vertical breadboard strip (shorted). Rotate the component or place it horizontally across columns.`);
+          } else {
+            pass(`${diodeName} is properly placed across separate breadboard terminal strips.`);
+          }
+
+          if (resistors.length === 0) {
+            fail('Missing series current-limiting Resistor (1 Kilo-Ohm) on the breadboard.');
+          } else {
+            const res = resistors[0];
+            const rNet1 = compPinNet(res, 0);
+            const rNet2 = compPinNet(res, 1);
+            if (rNet1 === rNet2) {
+              fail('Series Resistor leads are shorted in the same vertical column strip.');
+            } else {
+              pass(`Series Resistor (${formatOhmsFull(res.value)}) is placed across separate strips.`);
+            }
+
+            if (rpsList.length > 0) {
+              const rps = rpsList[0];
+              const rpsPos = find(`${rps.id}_POS`);
+              const rpsNeg = find(`${rps.id}_NEG`);
+
+              // Check loop continuity
+              const targetDiodePinNet = (currentSubMode === 'forward') ? anodeNet : cathodeNet;
+              const returnDiodePinNet = (currentSubMode === 'forward') ? cathodeNet : anodeNet;
+
+              const rConnectedToRps = (rNet1 === rpsPos || rNet2 === rpsPos || areNetsConnectedOrViaAmmeter(rNet1, rpsPos) || areNetsConnectedOrViaAmmeter(rNet2, rpsPos));
+              const otherResNet = (rNet1 === rpsPos || areNetsConnectedOrViaAmmeter(rNet1, rpsPos)) ? rNet2 : rNet1;
+
+              if (rConnectedToRps) {
+                pass('Regulated Power Supply Positive (+) terminal is connected to the series resistor path.');
+              } else {
+                fail('Connect Regulated Power Supply Positive (+) terminal to one lead of the 1 Kilo-Ohm Resistor.');
+              }
+
+              if (areNetsConnectedOrViaAmmeter(otherResNet, targetDiodePinNet)) {
+                pass(`Series path from Resistor and Ammeter connects properly to the ${currentSubMode === 'forward' ? 'Anode (+)' : 'Cathode (−)'} of the ${diodeName}.`);
+              } else if (areNetsConnectedOrViaAmmeter(otherResNet, returnDiodePinNet)) {
+                fail(`${diodeName} polarity is reversed for ${currentSubMode.toUpperCase()} bias! Select the diode and press 'R' twice (180°) or swap its Anode/Cathode connections.`);
+              } else {
+                fail(`Connect the second lead of the Resistor (through the Ammeter in series) to the ${diodeName}.`);
+              }
+
+              if (areNetsConnectedOrViaAmmeter(returnDiodePinNet, rpsNeg)) {
+                pass(`Return path from ${diodeName} to Regulated Power Supply Negative (−) terminal is complete.`);
+              } else {
+                fail(`Connect the ${currentSubMode === 'forward' ? 'Cathode (−)' : 'Anode (+)'} of the ${diodeName} back to Regulated Power Supply Negative (−).`);
+              }
+
+              // Check Voltmeter in parallel across diode
+              if (vmList.length > 0) {
+                const vm = vmList[0];
+                const vmP = find(`${vm.id}_POS`);
+                const vmN = find(`${vm.id}_NEG`);
+                if ((vmP === targetDiodePinNet && vmN === returnDiodePinNet) || (vmP === returnDiodePinNet && vmN === targetDiodePinNet)) {
+                  pass('Digital Voltmeter is properly connected in parallel across the diode.');
+                } else {
+                  fail('Connect Digital Voltmeter Positive (+) and Negative (−) terminals in parallel directly across the diode leads.');
+                }
+              }
+            }
+          }
+        }
+      } else if (currentExperiment === 'exp3') {
+        const zener = placedComponents.find(c => c.type === 'zener_5v6');
+        const drb = benchInstruments.find(i => i.type === 'drb');
+        if (!zener) fail('Place a Zener Diode (5.6 Volts) on the breadboard.');
+        else pass('Zener Diode (5.6 Volts) is placed on the breadboard.');
+        if (resistors.length === 0) fail('Place a 1 Kilo-Ohm series resistor Rs on the breadboard.');
+        else pass('Series Resistor Rs is placed on the breadboard.');
+        if (!drb && resistors.length < 2) fail('Add a Decade Resistance Box (from left drawer) or a second 1 Kilo-Ohm load resistor RL in parallel with the Zener diode.');
+        else pass('Load Resistance RL is present in the workspace.');
+
+        if (zener && resistors.length > 0 && rpsList.length > 0) {
+          const rpsPos = find(`${rpsList[0].id}_POS`);
+          const rpsNeg = find(`${rpsList[0].id}_NEG`);
+          const zAnode = compPinNet(zener, 0);
+          const zCathode = compPinNet(zener, 1);
+          if (zAnode === rpsNeg) {
+            pass('Zener Diode Anode is connected to ground (Reverse-biased for voltage regulation).');
+          } else {
+            fail('For Zener Voltage Regulation, connect the Zener Cathode (black band) to the regulated node and Anode to Regulated Power Supply Negative (−).');
+          }
+        }
+      } else if (currentExperiment === 'exp4') {
+        const diodes = placedComponents.filter(c => c.type === 'diode_1n4001');
+        const xfmr = benchInstruments.find(i => i.type === 'transformer');
+        if (!xfmr) fail('Add the Center-Tapped Step-Down Transformer (6V-0-6V) from the left equipment drawer.');
+        else pass('Center-Tapped Transformer (6V-0-6V) is on the workbench.');
+        const reqDiodes = currentSubMode === 'fullwave' ? 2 : 1;
+        if (diodes.length < reqDiodes) fail(`Place ${reqDiodes} P-N Junction Diode(s) (1N4001) on the breadboard for ${currentSubMode === 'fullwave' ? 'Full-Wave' : 'Half-Wave'} Rectification.`);
+        else pass(`${diodes.length} P-N Junction Diode(s) placed on the breadboard.`);
+        if (resistors.length === 0) fail('Place a 1 Kilo-Ohm Load Resistor RL on the breadboard.');
+        else pass('1 Kilo-Ohm Load Resistor RL is placed on the breadboard.');
+      } else if (currentExperiment === 'exp5') {
+        const diode = placedComponents.find(c => c.type === 'diode_1n4001');
+        const fg = benchInstruments.find(i => i.type === 'funcgen');
+        if (!fg) fail('Add a Function Generator (Sine Wave AC) from the left equipment drawer.');
+        else pass('Function Generator is ready on the workbench.');
+        if (!diode) fail('Place a P-N Junction Diode (1N4001) on the breadboard.');
+        else pass('P-N Junction Diode (1N4001) is placed on the breadboard.');
+        if (resistors.length === 0) fail('Place a 1 Kilo-Ohm series resistor on the breadboard.');
+        else pass('1 Kilo-Ohm Series Resistor is placed on the breadboard.');
+      } else if (currentExperiment === 'exp6') {
+        const bjt = placedComponents.find(c => c.type === 'bjt_bc107');
+        if (!bjt) fail('Place a Bipolar Junction Transistor (BC107) on the breadboard.');
+        else pass('Bipolar Junction Transistor (BC107) is placed on the breadboard.');
+        if (rpsList.length < 2) fail('Common Emitter Characteristics require 2 Regulated Power Supplies (VBB and VCC). Click "+ Regulated Power Supply" in the left drawer to add the second supply.');
+        else pass('Dual Regulated Power Supplies (VBB and VCC) are present on the workbench.');
+        if (resistors.length < 2) fail('Place two current-limiting resistors (100 Kilo-Ohms for Base and 560 Ohms/1 Kilo-Ohm for Collector) on the breadboard.');
+        else pass('Base and Collector resistors are placed on the breadboard.');
+      } else if (currentExperiment === 'exp7') {
+        const jfet = placedComponents.find(c => c.type === 'jfet_bfw10');
+        if (!jfet) fail('Place a Junction Field Effect Transistor (BFW10) on the breadboard.');
+        else pass('Junction Field Effect Transistor (BFW10) is placed on the breadboard.');
+        if (rpsList.length < 2) fail('JFET Characteristics require 2 Regulated Power Supplies (VGG and VDD). Click "+ Regulated Power Supply" in the left drawer to add a second supply.');
+        else pass('Dual Regulated Power Supplies (VGG and VDD) are present on the workbench.');
+      } else if (currentExperiment === 'exp8') {
+        const ldr = placedComponents.find(c => c.type === 'ldr_sensor');
+        if (!ldr) fail('Place a Light Dependent Resistor on the breadboard.');
+        else pass('Light Dependent Resistor with movable Lamp source is placed on the breadboard.');
+        if (resistors.length === 0) fail('Place a 1 Kilo-Ohm series resistor on the breadboard.');
+        else pass('1 Kilo-Ohm Series Resistor is placed on the breadboard.');
+      }
+
+      showDiagnosticBanner(
+        allPassed ? 'Circuit Connections Verified Successfully!' : 'Circuit Diagnostic Check — Action Needed',
+        diagnostics,
+        allPassed
+      );
+      return allPassed;
+    }
+
+    function showDiagnosticBanner(titleText, items, isSuccess) {
+      const banner = document.getElementById('diagnosticBanner');
+      const title = document.getElementById('diagTitle');
+      const list = document.getElementById('diagList');
+      const icon = document.getElementById('diagIcon');
+
+      banner.classList.remove('hidden', 'border-emerald-500/60', 'border-rose-500/60');
+      banner.classList.add(isSuccess ? 'border-emerald-500/60' : 'border-rose-500/60');
+
+      title.textContent = titleText;
+      title.className = `text-xs font-bold ${isSuccess ? 'text-emerald-400' : 'text-rose-400'}`;
+
+      icon.innerHTML = isSuccess
+        ? `<svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`
+        : `<svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+
+      list.innerHTML = items.map(it =>
+        `<li class="${it.ok ? 'text-emerald-300' : 'text-rose-300 font-medium'}">${it.ok ? '✓' : '✗'} ${it.msg}</li>`
+      ).join('');
+    }
+
+    /*************************************************************************
+     * 9. REAL-TIME SEMICONDUCTOR PHYSICS SIMULATION ENGINE
+     *************************************************************************/
+    let latestSimMetrics = { xVal: 0, vVal: 0, iVal: 0, paramVal: 0 };
+
+    function solveShockleyDiode(vSupply, rSeries, vKnee = 0.65, isSat = 1e-12, nVt = 0.0265) {
+      if (vSupply <= 0) return { vd: 0, id_mA: 0 };
+      let vd = Math.min(vSupply, vKnee);
+      // Newton-Raphson solver for I = Is*(exp(Vd/nVt) - 1) = (Vs - Vd)/R
+      for (let iter = 0; iter < 30; iter++) {
+        const expTerm = Math.exp(Math.min(40, vd / nVt));
+        const id = isSat * (expTerm - 1);
+        const f = id - (vSupply - vd) / rSeries;
+        const df = (isSat / nVt) * expTerm + (1 / rSeries);
+        const step = f / df;
+        vd -= step;
+        if (Math.abs(step) < 1e-6) break;
+      }
+      vd = Math.max(0, Math.min(vSupply, vd));
+      const id_mA = ((vSupply - vd) / rSeries) * 1000;
+      return { vd, id_mA };
+    }
+
+    function runLiveCircuitSimulation() {
+      const rpsList = benchInstruments.filter(i => i.type === 'rps');
+      const vmList  = benchInstruments.filter(i => i.type === 'voltmeter');
+      const amList  = benchInstruments.filter(i => i.type === 'ammeter');
+      const drbList = benchInstruments.filter(i => i.type === 'drb');
+      const fgList  = benchInstruments.filter(i => i.type === 'funcgen');
+      const resistors = placedComponents.filter(c => c.type === 'resistor');
+
+      const rps1V = rpsList[0] ? rpsList[0].voltage : 0;
+      const rps2V = rpsList[1] ? rpsList[1].voltage : 0;
+      const rSeries = resistors[0] ? resistors[0].value : 1000;
+
+      // Require minimum valid components & wires on board so meters read 0 when disconnected
+      const hasWires = jumperWires.length >= 2;
+
+      let vm1Reading = 0, vm2Reading = 0;
+      let am1Reading = 0, am2Reading = 0;
+
+      if (hasWires) {
+        if (currentExperiment === 'exp1') {
+          const hasDiode = placedComponents.some(c => c.type === 'diode_1n4001');
+          if (hasDiode) {
+            if (currentSubMode === 'forward') {
+              const res = solveShockleyDiode(rps1V, rSeries, 0.65, 2e-12, 0.027);
+              vm1Reading = res.vd;
+              am1Reading = res.id_mA;
+              latestSimMetrics = { xVal: vm1Reading, vVal: vm1Reading, iVal: am1Reading, paramVal: rps1V };
+            } else {
+              // Reverse bias: microampere saturation leakage current
+              vm1Reading = rps1V;
+              am1Reading = rps1V > 0 ? Math.min(18, 0.25 * Math.sqrt(rps1V) + rps1V * 0.12) : 0; // µA
+              latestSimMetrics = { xVal: vm1Reading, vVal: vm1Reading, iVal: am1Reading, paramVal: rps1V };
+            }
+          }
+        } else if (currentExperiment === 'exp2') {
+          const hasZener = placedComponents.some(c => c.type === 'zener_5v6');
+          if (hasZener) {
+            if (currentSubMode === 'forward') {
+              const res = solveShockleyDiode(rps1V, rSeries, 0.72, 1e-12, 0.028);
+              vm1Reading = res.vd;
+              am1Reading = res.id_mA;
+              latestSimMetrics = { xVal: vm1Reading, vVal: vm1Reading, iVal: am1Reading, paramVal: rps1V };
+            } else {
+              // Zener Reverse Breakdown at Vz = 5.6V with dynamic resistance Rz = 10 Ohms
+              const vz0 = 5.6;
+              const rz = 10;
+              if (rps1V <= vz0) {
+                vm1Reading = rps1V;
+                am1Reading = rps1V > 4.8 ? (rps1V - 4.8) * 0.25 : 0;
+              } else {
+                const iz = (rps1V - vz0) / (rSeries + rz);
+                vm1Reading = vz0 + iz * rz;
+                am1Reading = iz * 1000;
+              }
+              latestSimMetrics = { xVal: vm1Reading, vVal: vm1Reading, iVal: am1Reading, paramVal: rps1V };
+            }
+          }
+        } else if (currentExperiment === 'exp3') {
+          // Zener Voltage Regulator (Line & Load Regulation)
+          const hasZener = placedComponents.some(c => c.type === 'zener_5v6');
+          const rLoad = drbList[0] ? drbList[0].resistance : (resistors[1] ? resistors[1].value : 1000);
+          if (hasZener) {
+            const vThevenin = rps1V * (rLoad / (rSeries + rLoad));
+            const rThevenin = (rSeries * rLoad) / (rSeries + rLoad);
+            const vz0 = 5.6;
+            const rz = 8.5;
+            if (vThevenin <= vz0) {
+              vm1Reading = vThevenin;
+            } else {
+              const iz = (vThevenin - vz0) / (rThevenin + rz);
+              vm1Reading = vz0 + iz * rz;
+            }
+            am1Reading = (vm1Reading / rLoad) * 1000; // Load current IL in mA
+            latestSimMetrics = {
+              xVal: currentSubMode === 'line' ? rps1V : am1Reading,
+              vVal: vm1Reading,
+              iVal: am1Reading,
+              paramVal: currentSubMode === 'line' ? rps1V : rLoad
+            };
+          }
+        } else if (currentExperiment === 'exp6') {
+          // BJT Common Emitter Characteristics (BC107)
+          const hasBjt = placedComponents.some(c => c.type === 'bjt_bc107');
+          if (hasBjt) {
+            const rBase = 100000;
+            const rCol = 560;
+            const bjtIn = solveShockleyDiode(rps1V, rBase, 0.64, 1.5e-12, 0.026);
+            // Early effect slightly shifts VBE with VCE
+            const vceShift = Math.min(0.04, rps2V * 0.004);
+            const vbe = bjtIn.vd > 0 ? bjtIn.vd + vceShift : 0;
+            const ib_uA = bjtIn.id_mA * 1000; // microamperes
+            const beta = 150;
+            const icSat_mA = (ib_uA / 1000) * beta * (1 + rps2V * 0.012);
+            const vce = rps2V;
+            const ic_mA = vce <= 0 ? 0 : icSat_mA * (1 - Math.exp(-vce / 0.18));
+
+            vm1Reading = vbe;
+            am1Reading = ib_uA;
+            vm2Reading = vce;
+            am2Reading = ic_mA;
+
+            if (currentSubMode === 'input') {
+              latestSimMetrics = { xVal: vbe, vVal: vbe, iVal: ib_uA, paramVal: vce };
+            } else {
+              latestSimMetrics = { xVal: vce, vVal: vce, iVal: ic_mA, paramVal: Math.round(ib_uA) };
+            }
+          }
+        } else if (currentExperiment === 'exp7') {
+          // JFET BFW10 Drain & Transfer Characteristics (IDSS = 10 mA, VP = -4.0 V)
+          const hasJfet = placedComponents.some(c => c.type === 'jfet_bfw10');
+          if (hasJfet) {
+            const vgs = -Math.min(10, rps1V); // Gate reverse biased
+            const vds = rps2V;
+            const idss = 10.0; // mA
+            const vp = -4.0;
+            let id_mA = 0;
+            if (vgs > vp && vds > 0) {
+              const idSat = idss * Math.pow(1 - vgs / vp, 2);
+              const vPinch = Math.max(0.4, vgs - vp);
+              id_mA = idSat * Math.tanh(vds / vPinch) * (1 + 0.008 * vds);
+            }
+            vm1Reading = Math.abs(vgs);
+            vm2Reading = vds;
+            am1Reading = id_mA;
+
+            if (currentSubMode === 'drain') {
+              latestSimMetrics = { xVal: vds, vVal: vds, iVal: id_mA, paramVal: vgs };
+            } else {
+              latestSimMetrics = { xVal: vgs, vVal: vds, iVal: id_mA, paramVal: vds };
+            }
+          }
+        } else if (currentExperiment === 'exp8') {
+          // LDR Characteristics
+          const ldr = placedComponents.find(c => c.type === 'ldr_sensor');
+          if (ldr) {
+            const d = ldr.lightDist; // cm
+            // Realistic CdS LDR inverse power law: R_ldr (Ohms) increases with distance
+            const rLdrOhms = 400 + 28 * Math.pow(d, 1.45);
+            const i_mA = (rps1V / (rSeries + rLdrOhms)) * 1000;
+            const vLdr = (i_mA / 1000) * rLdrOhms;
+            vm1Reading = vLdr;
+            am1Reading = i_mA;
+            const rLdrKiloOhms = rLdrOhms / 1000;
+            latestSimMetrics = { xVal: d, vVal: vLdr, iVal: rLdrKiloOhms, paramVal: i_mA };
+          }
+        } else {
+          // Custom Sandbox or Rectifier/Clipper DC meter approximation
+          const res = solveShockleyDiode(rps1V, rSeries, 0.65, 2e-12, 0.027);
+          vm1Reading = res.vd;
+          am1Reading = res.id_mA;
+          latestSimMetrics = { xVal: vm1Reading, vVal: vm1Reading, iVal: am1Reading, paramVal: rps1V };
+        }
+      }
+
+      // Update Voltmeter & Ammeter displays
+      if (vmList[0]) {
+        vmList[0].reading = vm1Reading;
+        const el = document.getElementById(`svgReadout_${vmList[0].id}`);
+        if (el) el.textContent = `${vm1Reading.toFixed(2)} V`;
+      }
+      if (vmList[1]) {
+        vmList[1].reading = vm2Reading;
+        const el = document.getElementById(`svgReadout_${vmList[1].id}`);
+        if (el) el.textContent = `${vm2Reading.toFixed(2)} V`;
+      }
+      if (amList[0]) {
+        amList[0].reading = am1Reading;
+        const unit = amList[0].range.includes('µA') ? 'µA' : 'mA';
+        const el = document.getElementById(`svgReadout_${amList[0].id}`);
+        if (el) el.textContent = `${am1Reading.toFixed(2)} ${unit}`;
+      }
+      if (amList[1]) {
+        amList[1].reading = am2Reading;
+        const unit = amList[1].range.includes('µA') ? 'µA' : 'mA';
+        const el = document.getElementById(`svgReadout_${amList[1].id}`);
+        if (el) el.textContent = `${am2Reading.toFixed(2)} ${unit}`;
+      }
+
+      drawCharacteristicGraph();
+      drawCroWaveforms();
+    }
+
+    /*************************************************************************
+     * 10. CHARACTERISTIC GRAPH PLOTTER & CATHODE RAY OSCILLOSCOPE
+     *************************************************************************/
+    function drawCharacteristicGraph() {
+      const canvas = document.getElementById('characteristicCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width;
+      const H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const padL = 44, padR = 16, padT = 16, padB = 30;
+      const plotW = W - padL - padR;
+      const plotH = H - padT - padB;
+
+      // Grid lines
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 5; i++) {
+        const gx = padL + (plotW * i) / 5;
+        const gy = padT + (plotH * i) / 5;
+        ctx.beginPath(); ctx.moveTo(gx, padT); ctx.lineTo(gx, padT + plotH); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(padL + plotW, gy); ctx.stroke();
+      }
+
+      // Axes
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(padL, padT);
+      ctx.lineTo(padL, padT + plotH);
+      ctx.lineTo(padL + plotW, padT + plotH);
+      ctx.stroke();
+
+      // Determine dynamic scale
+      const pts = [...recordedReadings];
+      const maxX = Math.max(1.0, ...pts.map(p => Math.abs(p.xVal)), Math.abs(latestSimMetrics.xVal) * 1.15);
+      const maxY = Math.max(5.0, ...pts.map(p => Math.abs(p.yVal)), Math.abs(latestSimMetrics.iVal) * 1.15);
+
+      // Axis ticks
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '10px JetBrains Mono';
+      ctx.textAlign = 'center';
+      for (let i = 0; i <= 5; i++) {
+        const vx = (maxX * i) / 5;
+        const gx = padL + (plotW * i) / 5;
+        ctx.fillText(vx.toFixed(1), gx, H - 10);
+      }
+      ctx.textAlign = 'right';
+      for (let i = 0; i <= 5; i++) {
+        const vy = (maxY * (5 - i)) / 5;
+        const gy = padT + (plotH * i) / 5 + 3;
+        ctx.fillText(vy.toFixed(1), padL - 6, gy);
+      }
+
+      // Plot recorded curve sorted by X
+      if (pts.length > 0) {
+        const sorted = [...pts].sort((a, b) => a.xVal - b.xVal);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        sorted.forEach((p, idx) => {
+          const px = padL + (Math.abs(p.xVal) / maxX) * plotW;
+          const py = padT + plotH - (Math.abs(p.yVal) / maxY) * plotH;
+          if (idx === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        });
+        ctx.stroke();
+
+        // Data points
+        sorted.forEach(p => {
+          const px = padL + (Math.abs(p.xVal) / maxX) * plotW;
+          const py = padT + plotH - (Math.abs(p.yVal) / maxY) * plotH;
+          ctx.fillStyle = '#0284c7';
+          ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#e0f2fe';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        });
+      }
+
+      // Live operating point cursor dot
+      const curX = padL + Math.min(1, Math.abs(latestSimMetrics.xVal) / maxX) * plotW;
+      const curY = padT + plotH - Math.min(1, Math.abs(latestSimMetrics.iVal) / maxY) * plotH;
+      ctx.fillStyle = '#10b981';
+      ctx.beginPath();
+      ctx.arc(curX, curY, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    function drawCroWaveforms() {
+      const canvas = document.getElementById('croCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width;
+      const H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      // Graticule grid
+      ctx.strokeStyle = 'rgba(20, 184, 166, 0.18)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= W; x += 34) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+      for (let y = 0; y <= H; y += 25) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+      // Center 0V line
+      const midY = H / 2;
+      ctx.strokeStyle = 'rgba(20, 184, 166, 0.45)';
+      ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(W, midY); ctx.stroke();
+
+      const fg = benchInstruments.find(i => i.type === 'funcgen');
+      const rps = benchInstruments.find(i => i.type === 'rps');
+      const vPeakIn = currentExperiment === 'exp4' ? 8.5 : (fg ? fg.amplitude / 2 : 6.0);
+      const vBias = rps ? rps.voltage : 2.0;
+      const vKnee = 0.65;
+
+      const scaleY = 8.5; // pixels per volt
+      let vMaxOut = -999, vMinOut = 999, sumOut = 0, count = 0;
+
+      // Channel 1: Input Sine Wave (Dashed Amber)
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      for (let x = 0; x < W; x++) {
+        const theta = (x / W) * Math.PI * 4;
+        const vin = vPeakIn * Math.sin(theta);
+        const py = midY - vin * scaleY;
+        if (x === 0) ctx.moveTo(x, py);
+        else ctx.lineTo(x, py);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Channel 2: Output Waveform (Solid Cyan)
+      ctx.strokeStyle = '#22d3ee';
+      ctx.lineWidth = 2.8;
+      ctx.beginPath();
+      for (let x = 0; x < W; x++) {
+        const theta = (x / W) * Math.PI * 4;
+        const vin = vPeakIn * Math.sin(theta);
+        let vout = 0;
+
+        if (currentExperiment === 'exp4') {
+          if (currentSubMode === 'halfwave') {
+            vout = vin > vKnee ? vin - vKnee : 0;
+          } else {
+            vout = Math.abs(vin) > vKnee ? Math.abs(vin) - vKnee : 0;
+          }
+        } else if (currentExperiment === 'exp5') {
+          if (currentSubMode === 'pos_clipper') {
+            const clipLevel = vBias + vKnee;
+            vout = vin > clipLevel ? clipLevel : vin;
+          } else {
+            const clipLevel = -(vBias + vKnee);
+            vout = vin < clipLevel ? clipLevel : vin;
+          }
+        } else {
+          vout = vin > vKnee ? vin - vKnee : 0;
+        }
+
+        vMaxOut = Math.max(vMaxOut, vout);
+        vMinOut = Math.min(vMinOut, vout);
+        sumOut += vout;
+        count++;
+
+        const py = midY - vout * scaleY;
+        if (x === 0) ctx.moveTo(x, py);
+        else ctx.lineTo(x, py);
+      }
+      ctx.stroke();
+
+      document.getElementById('croCh1Readout').textContent = `${(vPeakIn * 2).toFixed(1)} Vp-p`;
+      document.getElementById('croCh2Readout').textContent = `${vMaxOut.toFixed(2)} V peak`;
+      document.getElementById('croVmax').textContent = `+${vMaxOut.toFixed(2)} V`;
+      document.getElementById('croVmin').textContent = `${vMinOut.toFixed(2)} V`;
+      document.getElementById('croVdc').textContent = `${(sumOut / count).toFixed(2)} V`;
+    }
+
+    /*************************************************************************
+     * 11. EXPERIMENT CONFIGURATIONS, AUTO-BUILD DEMO & REFERENCE GUIDES
+     *************************************************************************/
+    const EXPERIMENT_CONFIGS = {
+      custom: {
+        title: 'Custom Sandbox Mode (Free Circuit Design)',
+        subModes: [{ id: 'free', label: 'Free Custom Circuit' }],
+        graphTitle: 'Custom Circuit Voltage vs Current',
+        axisLabel: 'X: Voltage (V) vs Y: Current (mA)',
+        cols: ['Supply (V)', 'Voltage (V)', 'Current (mA)'],
+        guideHtml: `
+          <p>In <strong>Custom Sandbox Mode</strong>, you have total freedom to place any combination of diodes, resistors, transistors, power supplies, and meters anywhere on the breadboard.</p>
+          <ul class="list-disc list-inside space-y-1 mt-2">
+            <li>Hover over any breadboard hole to see which holes are internally connected.</li>
+            <li>Select any component and press <strong>R</strong> to rotate it 0°, 90°, 180°, or 270°.</li>
+            <li>Use the left drawer to spawn extra Regulated Power Supplies (0–100V), Function Generators, or Oscilloscopes.</li>
+          </ul>
+        `
+      },
+      exp1: {
+        title: '1. V-I Characteristics of P-N Junction Diode',
+        subModes: [
+          { id: 'forward', label: 'Forward Bias Characteristics' },
+          { id: 'reverse', label: 'Reverse Bias Characteristics' }
+        ],
+        graphTitle: 'P-N Junction Diode V-I Characteristic Curve',
+        axisLabel: 'X: Diode Voltage VF/VR (Volts) vs Y: Current IF (mA) / IR (µA)',
+        cols: ['RPS (V)', 'Diode VF/VR (V)', 'Current'],
+        guideHtml: `
+          <h4 class="font-bold text-sky-400 text-sm mb-1">Standard Breadboard Connection Procedure:</h4>
+          <ol class="list-decimal list-inside space-y-1.5">
+            <li>Place the <strong>1 Kilo-Ohm Resistor</strong> and <strong>P-N Junction Diode (1N4001)</strong> horizontally on the breadboard so each lead sits in a different numbered column.</li>
+            <li>Connect <strong>Regulated Power Supply Positive (+)</strong> to the first lead of the 1 Kilo-Ohm Resistor.</li>
+            <li>Connect the second lead of the 1 Kilo-Ohm Resistor to <strong>Digital Ammeter Positive (+)</strong>.</li>
+            <li>For <strong>Forward Bias</strong>: Connect <strong>Digital Ammeter Negative (−)</strong> to the <strong>Anode (+)</strong> of the 1N4001 Diode, and connect the <strong>Cathode (silver band, −)</strong> back to <strong>Regulated Power Supply Negative (−)</strong>.</li>
+            <li>For <strong>Reverse Bias</strong>: Reverse the diode so the <strong>Cathode (silver band)</strong> receives current from the Ammeter and the <strong>Anode</strong> returns to Negative (−).</li>
+            <li>Connect the <strong>Digital Voltmeter</strong> in parallel directly across the Anode and Cathode of the P-N Junction Diode.</li>
+          </ol>
+        `
+      },
+      exp2: {
+        title: '2. V-I Characteristics of Zener Diode',
+        subModes: [
+          { id: 'reverse', label: 'Reverse Breakdown Characteristics' },
+          { id: 'forward', label: 'Forward Bias Characteristics' }
+        ],
+        graphTitle: 'Zener Diode (5.6V) V-I Characteristic Curve',
+        axisLabel: 'X: Zener Voltage VZ (Volts) vs Y: Current IZ (mA)',
+        cols: ['RPS (V)', 'Zener VZ (V)', 'Current IZ (mA)'],
+        guideHtml: `
+          <h4 class="font-bold text-sky-400 text-sm mb-1">Zener Diode (1Z5.6) Connection Guide:</h4>
+          <ol class="list-decimal list-inside space-y-1.5">
+            <li>Place the <strong>1 Kilo-Ohm Resistor</strong> and <strong>Zener Diode (5.6 Volts)</strong> on the breadboard.</li>
+            <li>For <strong>Reverse Breakdown</strong>: Connect the series path from Regulated Power Supply Positive (+) → 1 Kilo-Ohm Resistor → Ammeter → <strong>Zener Cathode (black band)</strong>, and connect <strong>Zener Anode</strong> to Regulated Power Supply Negative (−).</li>
+            <li>Connect the <strong>Digital Voltmeter</strong> in parallel across the Zener Diode.</li>
+            <li>Vary the Regulated Power Supply from 0V to 25V. Beyond 5.6 Volts breakdown, voltage across the Zener remains nearly constant at ~5.6V while current rises sharply.</li>
+          </ol>
+        `
+      },
+      exp3: {
+        title: '3. Zener Diode as a Voltage Regulator',
+        subModes: [
+          { id: 'line', label: 'Line Regulation (Vary Input Vin)' },
+          { id: 'load', label: 'Load Regulation (Vary Load RL)' }
+        ],
+        graphTitle: 'Zener Voltage Regulator Characteristic Plot',
+        axisLabel: 'X: Input Vin (V) or Load Current IL (mA) vs Y: Output Vo (V)',
+        cols: ['Vin / RL', 'Output Vo (V)', 'Load IL (mA)'],
+        guideHtml: `
+          <h4 class="font-bold text-sky-400 text-sm mb-1">Zener Voltage Regulator Wiring Checklist:</h4>
+          <ol class="list-decimal list-inside space-y-1.5">
+            <li>Connect <strong>Regulated Power Supply Positive (+)</strong> to one end of the <strong>1 Kilo-Ohm Series Resistor (Rs)</strong>.</li>
+            <li>Connect the other end of Rs to the <strong>Cathode (black band)</strong> of the <strong>Zener Diode (5.6 Volts)</strong>. Connect the Zener <strong>Anode</strong> to Ground / Negative (−).</li>
+            <li>Connect the <strong>Decade Resistance Box (RL)</strong> and <strong>Digital Voltmeter (Vo)</strong> in parallel with the Zener Diode.</li>
+            <li>For <strong>Line Regulation</strong>: Keep RL fixed at 1 Kilo-Ohm and vary Input Voltage from 0V to 25V.</li>
+            <li>For <strong>Load Regulation</strong>: Keep Input Voltage fixed at 15V and vary the Decade Resistance Box from 500 Ohms to 10 Kilo-Ohms.</li>
+          </ol>
+        `
+      },
+      exp4: {
+        title: '4. Half-Wave & Full-Wave Center-Tapped Rectifier',
+        subModes: [
+          { id: 'halfwave', label: 'Half-Wave Rectifier' },
+          { id: 'fullwave', label: 'Full-Wave Center-Tapped Rectifier' }
+        ],
+        graphTitle: 'Rectifier Output Waveform Analysis (See Oscilloscope Tab)',
+        axisLabel: 'Switch to the Cathode Ray Oscilloscope tab on the right to view live waveforms',
+        cols: ['Input Vp-p', 'Output Vmax (V)', 'DC Avg (V)'],
+        guideHtml: `
+          <h4 class="font-bold text-sky-400 text-sm mb-1">Rectifier Circuit Guide:</h4>
+          <ol class="list-decimal list-inside space-y-1.5">
+            <li>Spawn the <strong>Center-Tapped Transformer (6V-0-6V)</strong> and <strong>Cathode Ray Oscilloscope</strong> from the left drawer (or click Auto-Build Demo).</li>
+            <li>For <strong>Half-Wave</strong>: Connect Secondary +6V → Anode of 1N4001 Diode → Cathode to 1 Kilo-Ohm Load Resistor → return to Center Tap (0V).</li>
+            <li>For <strong>Full-Wave Center-Tapped</strong>: Connect two 1N4001 Diodes to the two outer 6V secondary terminals, join both Cathodes together at one end of the 1 Kilo-Ohm Load Resistor, and return the other end of the Load Resistor to Center Tap (0V).</li>
+          </ol>
+        `
+      },
+      exp5: {
+        title: '5. Positive & Negative Biased Diode Clippers',
+        subModes: [
+          { id: 'pos_clipper', label: 'Positive Biased Clipper' },
+          { id: 'neg_clipper', label: 'Negative Biased Clipper' }
+        ],
+        graphTitle: 'Biased Clipper Waveform Analysis (See Oscilloscope Tab)',
+        axisLabel: 'Adjust Bias Voltage VB on the Regulated Power Supply and observe clipping on the CRO',
+        cols: ['Bias VB (V)', 'Clipped Peak (V)', 'Input Vp-p'],
+        guideHtml: `
+          <h4 class="font-bold text-sky-400 text-sm mb-1">Biased Clipper Connection Guide:</h4>
+          <ol class="list-decimal list-inside space-y-1.5">
+            <li>Connect the <strong>Function Generator (1 kHz Sine Wave)</strong> in series with a <strong>1 Kilo-Ohm Resistor</strong>.</li>
+            <li>In parallel with the output terminals, connect the <strong>P-N Junction Diode (1N4001)</strong> in series with the <strong>Regulated Power Supply (Bias Voltage VB)</strong>.</li>
+            <li>Open the <strong>Cathode Ray Oscilloscope</strong> tab on the right and vary the Regulated Power Supply between 1V and 5V to see the waveform clip dynamically at <strong>±(VB + 0.65V)</strong>.</li>
+          </ol>
+        `
+      },
+      exp6: {
+        title: '6. Common Emitter Bipolar Junction Transistor',
+        subModes: [
+          { id: 'input', label: 'Input Characteristics (IB vs VBE)' },
+          { id: 'output', label: 'Output Characteristics (IC vs VCE)' }
+        ],
+        graphTitle: 'Bipolar Junction Transistor (BC107) CE Characteristics',
+        axisLabel: 'Input: VBE (V) vs IB (µA) • Output: VCE (V) vs IC (mA)',
+        cols: ['Constant Param', 'Voltage (V)', 'Current'],
+        guideHtml: `
+          <h4 class="font-bold text-sky-400 text-sm mb-1">Common Emitter (BC107) Connection Guide:</h4>
+          <ol class="list-decimal list-inside space-y-1.5">
+            <li>Place the <strong>Bipolar Junction Transistor (BC107)</strong> on the breadboard (Pins: Collector, Base, Emitter).</li>
+            <li>Add a second <strong>Regulated Power Supply</strong>, second <strong>Voltmeter</strong>, and second <strong>Ammeter</strong> from the left drawer (or click Auto-Build Demo).</li>
+            <li>Connect Base loop: Supply 1 (VBB) → 100 Kilo-Ohm Resistor → Microammeter (0–100µA) → Base (B), with Voltmeter 1 (VBE) across Base and Emitter.</li>
+            <li>Connect Collector loop: Supply 2 (VCC) → 560 Ohm Resistor → Milliammeter (0–10mA) → Collector (C), with Voltmeter 2 (VCE) across Collector and Emitter.</li>
+          </ol>
+        `
+      },
+      exp7: {
+        title: '7. Junction Field Effect Transistor Characteristics',
+        subModes: [
+          { id: 'drain', label: 'Drain Characteristics (ID vs VDS)' },
+          { id: 'transfer', label: 'Transfer Characteristics (ID vs VGS)' }
+        ],
+        graphTitle: 'Junction Field Effect Transistor (BFW10) Characteristics',
+        axisLabel: 'Drain: VDS (V) vs ID (mA) • Transfer: VGS (V) vs ID (mA)',
+        cols: ['VGS / VDS (V)', 'Voltage (V)', 'Drain ID (mA)'],
+        guideHtml: `
+          <h4 class="font-bold text-sky-400 text-sm mb-1">JFET (BFW10) Connection Guide:</h4>
+          <ol class="list-decimal list-inside space-y-1.5">
+            <li>Place the <strong>Junction Field Effect Transistor (BFW10)</strong> on the breadboard (Pins: Gate, Drain, Source).</li>
+            <li>Connect Gate-Source reverse bias loop using Supply 1 (VGG) with Negative (−) to Gate and Positive (+) to Source.</li>
+            <li>Connect Drain-Source loop using Supply 2 (VDD) → 560 Ohm Resistor → Ammeter (0–25mA) → Drain (D).</li>
+          </ol>
+        `
+      },
+      exp8: {
+        title: '8. Light Dependent Resistor Characteristics',
+        subModes: [
+          { id: 'ldr_dist', label: 'Resistance vs Lamp Distance (cm)' }
+        ],
+        graphTitle: 'Light Dependent Resistor Curve (R in kΩ vs Distance cm)',
+        axisLabel: 'X: Lamp Distance d (cm) vs Y: LDR Resistance (Kilo-Ohms)',
+        cols: ['Distance (cm)', 'LDR Voltage (V)', 'Resistance (kΩ)'],
+        guideHtml: `
+          <h4 class="font-bold text-sky-400 text-sm mb-1">Light Dependent Resistor Connection Guide:</h4>
+          <ol class="list-decimal list-inside space-y-1.5">
+            <li>Place the <strong>1 Kilo-Ohm Resistor</strong> and <strong>Light Dependent Resistor</strong> on the breadboard.</li>
+            <li>Connect Regulated Power Supply (set to 5V or 10V) in series with the 1 Kilo-Ohm Resistor, Ammeter, and Light Dependent Resistor.</li>
+            <li>Connect the Digital Voltmeter in parallel across the Light Dependent Resistor.</li>
+            <li>Slide the <strong>Light Source Distance (Lamp)</strong> control on the bottom dock from 5 cm to 100 cm and record how LDR resistance rises as illuminance decreases.</li>
+          </ol>
+        `
+      }
+    };
+
+    function populateSubModesAndHeaders() {
+      const cfg = EXPERIMENT_CONFIGS[currentExperiment];
+      const subSel = document.getElementById('subModeSelect');
+      subSel.innerHTML = cfg.subModes.map(m => `<option value="${m.id}">${m.label}</option>`).join('');
+      currentSubMode = cfg.subModes[0].id;
+
+      document.getElementById('graphTitle').textContent = cfg.graphTitle;
+      document.getElementById('graphAxisLabel').textContent = cfg.axisLabel;
+      document.getElementById('thCol1').textContent = cfg.cols[0];
+      document.getElementById('thCol2').textContent = cfg.cols[1];
+      document.getElementById('thCol3').textContent = cfg.cols[2];
+
+      document.getElementById('modalExpTitle').textContent = cfg.title;
+      document.getElementById('modalContentBody').innerHTML = cfg.guideHtml;
+
+      if (currentExperiment === 'exp4' || currentExperiment === 'exp5') {
+        switchRightTab('cro');
+      } else {
+        switchRightTab('graph');
+      }
+    }
+
+    // Auto-Build Demo Layout if the student wants to see an example breadboard wiring
+    window.buildDemoCircuit = function() {
+      createDefaultWorkbench();
+      document.getElementById('diagnosticBanner').classList.add('hidden');
+
+      if (currentExperiment === 'exp1' || currentExperiment === 'exp2') {
+        const isZener = currentExperiment === 'exp2';
+        const rps = benchInstruments.find(i => i.type === 'rps');
+        const vm  = benchInstruments.find(i => i.type === 'voltmeter');
+        const am  = benchInstruments.find(i => i.type === 'ammeter');
+        rps.voltage = isZener ? 8.0 : 2.5;
+        vm.range = currentSubMode === 'forward' ? '0-1V' : '0-30V';
+        am.range = (currentExperiment === 'exp1' && currentSubMode === 'reverse') ? '0-100µA' : '0-100mA';
+
+        // Place 1k Resistor at Row C, Col 8 (leads at Col 6 and Col 10)
+        spawnBreadboardComponent('resistor', 1000, { row: 'C', col: 8, rotation: 0 });
+        // Place Diode at Row C, Col 18 (leads at Col 16 and Col 20)
+        const rot = currentSubMode === 'forward' ? 0 : 180;
+        spawnBreadboardComponent(isZener ? 'zener_5v6' : 'diode_1n4001', 1000, { row: 'C', col: 18, rotation: rot });
+
+        jumperWires.push(
+          { id: 'w1', fromNode: `${rps.id}_POS`, toNode: 'BB_A_6', color: '#ef4444' },
+          { id: 'w2', fromNode: 'BB_A_10', toNode: `${am.id}_POS`, color: '#f59e0b' },
+          { id: 'w3', fromNode: `${am.id}_NEG`, toNode: 'BB_A_16', color: '#10b981' },
+          { id: 'w4', fromNode: 'BB_A_20', toNode: `${rps.id}_NEG`, color: '#3b82f6' },
+          { id: 'w5', fromNode: 'BB_E_16', toNode: `${vm.id}_POS`, color: '#ef4444' },
+          { id: 'w6', fromNode: 'BB_E_20', toNode: `${vm.id}_NEG`, color: '#3b82f6' }
+        );
+      } else if (currentExperiment === 'exp3') {
+        const rps = benchInstruments.find(i => i.type === 'rps');
+        const vm  = benchInstruments.find(i => i.type === 'voltmeter');
+        const am  = benchInstruments.find(i => i.type === 'ammeter');
+        const drb = spawnInstrument('drb', { resistance: 1000 });
+        rps.voltage = 12.0;
+
+        spawnBreadboardComponent('resistor', 1000, { row: 'C', col: 8, rotation: 0 });
+        spawnBreadboardComponent('zener_5v6', 1000, { row: 'C', col: 16, rotation: 180 }); // Cathode at Col 14, Anode at Col 18
+
+        jumperWires.push(
+          { id: 'w1', fromNode: `${rps.id}_POS`, toNode: 'BB_A_6', color: '#ef4444' },
+          { id: 'w2', fromNode: 'BB_A_10', toNode: 'BB_A_14', color: '#f59e0b' },
+          { id: 'w3', fromNode: 'BB_A_18', toNode: `${rps.id}_NEG`, color: '#3b82f6' },
+          { id: 'w4', fromNode: 'BB_E_14', toNode: `${am.id}_POS`, color: '#10b981' },
+          { id: 'w5', fromNode: `${am.id}_NEG`, toNode: `${drb.id}_T1`, color: '#a855f7' },
+          { id: 'w6', fromNode: `${drb.id}_T2`, toNode: 'BB_E_18', color: '#3b82f6' },
+          { id: 'w7', fromNode: 'BB_B_14', toNode: `${vm.id}_POS`, color: '#ef4444' },
+          { id: 'w8', fromNode: 'BB_B_18', toNode: `${vm.id}_NEG`, color: '#3b82f6' }
+        );
+      } else if (currentExperiment === 'exp4') {
+        const xfmr = spawnInstrument('transformer');
+        const cro  = spawnInstrument('cro');
+        spawnBreadboardComponent('diode_1n4001', 1000, { row: 'C', col: 10, rotation: 0 });
+        if (currentSubMode === 'fullwave') {
+          spawnBreadboardComponent('diode_1n4001', 1000, { row: 'G', col: 10, rotation: 0 });
+        }
+        spawnBreadboardComponent('resistor', 1000, { row: 'C', col: 20, rotation: 0 });
+
+        jumperWires.push(
+          { id: 'w1', fromNode: `${xfmr.id}_A`, toNode: 'BB_A_8', color: '#f59e0b' },
+          { id: 'w2', fromNode: 'BB_A_12', toNode: 'BB_A_18', color: '#ef4444' },
+          { id: 'w3', fromNode: 'BB_A_22', toNode: `${xfmr.id}_CT`, color: '#3b82f6' },
+          { id: 'w4', fromNode: 'BB_E_18', toNode: `${cro.id}_CH2`, color: '#10b981' },
+          { id: 'w5', fromNode: 'BB_E_22', toNode: `${cro.id}_GND`, color: '#3b82f6' }
+        );
+        if (currentSubMode === 'fullwave') {
+          jumperWires.push(
+            { id: 'w6', fromNode: `${xfmr.id}_B`, toNode: 'BB_I_8', color: '#f59e0b' },
+            { id: 'w7', fromNode: 'BB_I_12', toNode: 'BB_B_18', color: '#ef4444' }
+          );
+        }
+      } else if (currentExperiment === 'exp5') {
+        const fg = spawnInstrument('funcgen', { amplitude: 14 });
+        const cro = spawnInstrument('cro');
+        const rps = benchInstruments.find(i => i.type === 'rps');
+        rps.voltage = 2.0;
+
+        spawnBreadboardComponent('resistor', 1000, { row: 'C', col: 9, rotation: 0 });
+        spawnBreadboardComponent('diode_1n4001', 1000, { row: 'C', col: 17, rotation: currentSubMode === 'pos_clipper' ? 0 : 180 });
+
+        jumperWires.push(
+          { id: 'w1', fromNode: `${fg.id}_POS`, toNode: 'BB_A_7', color: '#ec4899' },
+          { id: 'w2', fromNode: 'BB_A_11', toNode: 'BB_A_15', color: '#f59e0b' },
+          { id: 'w3', fromNode: 'BB_A_19', toNode: `${rps.id}_POS`, color: '#ef4444' },
+          { id: 'w4', fromNode: `${rps.id}_NEG`, toNode: `${fg.id}_NEG`, color: '#3b82f6' },
+          { id: 'w5', fromNode: 'BB_E_15', toNode: `${cro.id}_CH2`, color: '#10b981' }
+        );
+      } else if (currentExperiment === 'exp6' || currentExperiment === 'exp7') {
+        const isBjt = currentExperiment === 'exp6';
+        const rps1 = benchInstruments.find(i => i.type === 'rps');
+        const rps2 = spawnInstrument('rps', { voltage: 5.0 });
+        const vm1  = benchInstruments.find(i => i.type === 'voltmeter');
+        const am1  = benchInstruments.find(i => i.type === 'ammeter');
+        const vm2  = spawnInstrument('voltmeter', { range: '0-30V' });
+        rps1.voltage = isBjt ? 2.5 : 1.0;
+        am1.range = isBjt ? '0-100µA' : '0-25mA';
+
+        spawnBreadboardComponent('resistor', isBjt ? 100000 : 560, { row: 'C', col: 7, rotation: 0 });
+        spawnBreadboardComponent(isBjt ? 'bjt_bc107' : 'jfet_bfw10', 1000, { row: 'C', col: 15, rotation: 0 });
+        spawnBreadboardComponent('resistor', 560, { row: 'C', col: 23, rotation: 0 });
+
+        jumperWires.push(
+          { id: 'w1', fromNode: `${rps1.id}_POS`, toNode: 'BB_A_5', color: '#ef4444' },
+          { id: 'w2', fromNode: 'BB_A_9', toNode: `${am1.id}_POS`, color: '#f59e0b' },
+          { id: 'w3', fromNode: `${am1.id}_NEG`, toNode: 'BB_A_15', color: '#10b981' },
+          { id: 'w4', fromNode: `${rps2.id}_POS`, toNode: 'BB_A_25', color: '#ef4444' },
+          { id: 'w5', fromNode: 'BB_A_21', toNode: 'BB_A_14', color: '#a855f7' },
+          { id: 'w6', fromNode: 'BB_A_16', toNode: `${rps1.id}_NEG`, color: '#3b82f6' },
+          { id: 'w7', fromNode: 'BB_E_16', toNode: `${rps2.id}_NEG`, color: '#3b82f6' }
+        );
+      } else if (currentExperiment === 'exp8') {
+        const rps = benchInstruments.find(i => i.type === 'rps');
+        const vm  = benchInstruments.find(i => i.type === 'voltmeter');
+        const am  = benchInstruments.find(i => i.type === 'ammeter');
+        rps.voltage = 5.0;
+        am.range = '0-10mA';
+
+        spawnBreadboardComponent('resistor', 1000, { row: 'C', col: 8, rotation: 0 });
+        spawnBreadboardComponent('ldr_sensor', 1000, { row: 'C', col: 18, rotation: 0 });
+
+        jumperWires.push(
+          { id: 'w1', fromNode: `${rps.id}_POS`, toNode: 'BB_A_6', color: '#ef4444' },
+          { id: 'w2', fromNode: 'BB_A_10', toNode: `${am.id}_POS`, color: '#f59e0b' },
+          { id: 'w3', fromNode: `${am.id}_NEG`, toNode: 'BB_A_16', color: '#10b981' },
+          { id: 'w4', fromNode: 'BB_A_20', toNode: `${rps.id}_NEG`, color: '#3b82f6' },
+          { id: 'w5', fromNode: 'BB_E_16', toNode: `${vm.id}_POS`, color: '#ef4444' },
+          { id: 'w6', fromNode: 'BB_E_20', toNode: `${vm.id}_NEG`, color: '#3b82f6' }
+        );
+      }
+
+      renderAll();
+    };
+
+    /*************************************************************************
+     * 12. DATA LOGGING, AUTO-SWEEP & EVENT LISTENERS
+     *************************************************************************/
+    function recordCurrentReading() {
+      const pt = {
+        idx: recordedReadings.length + 1,
+        param: latestSimMetrics.paramVal,
+        xVal: latestSimMetrics.xVal,
+        yVal: latestSimMetrics.iVal,
+        vVal: latestSimMetrics.vVal
+      };
+      recordedReadings.push(pt);
+      renderObservationTable();
+      drawCharacteristicGraph();
+    }
+
+    function renderObservationTable() {
+      const tbody = document.getElementById('observationTableBody');
+      document.getElementById('readingCountBadge').textContent = `${recordedReadings.length} Readings`;
+      if (recordedReadings.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="4" class="py-8 text-center text-slate-500 font-sans text-xs">
+              Adjust the Regulated Power Supply and click <strong>"Record Reading"</strong> to log data points.
+            </td>
+          </tr>`;
+        return;
+      }
+      tbody.innerHTML = recordedReadings.map(r => `
+        <tr class="hover:bg-slate-900/80">
+          <td class="py-1.5 px-2.5 text-slate-400">${r.idx}</td>
+          <td class="py-1.5 px-2.5">${r.param.toFixed(2)}</td>
+          <td class="py-1.5 px-2.5 text-sky-300">${r.vVal.toFixed(2)}</td>
+          <td class="py-1.5 px-2.5 text-emerald-400 font-semibold">${r.yVal.toFixed(2)}</td>
+        </tr>
+      `).join('');
+    }
+
+    window.switchRightTab = function(tab) {
+      const gView = document.getElementById('panelGraphView');
+      const cView = document.getElementById('panelCroView');
+      const bGraph = document.getElementById('tabBtnGraph');
+      const bCro = document.getElementById('tabBtnCro');
+
+      if (tab === 'graph') {
+        gView.classList.remove('hidden');
+        cView.classList.add('hidden');
+        bGraph.className = 'py-2 rounded-lg text-xs font-bold bg-slate-800 text-sky-400 shadow transition';
+        bCro.className = 'py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition';
+      } else {
+        gView.classList.add('hidden');
+        cView.classList.remove('hidden');
+        bCro.className = 'py-2 rounded-lg text-xs font-bold bg-slate-800 text-teal-400 shadow transition';
+        bGraph.className = 'py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition';
+        drawCroWaveforms();
+      }
+    };
+
+    // Setup Global Event Listeners
+    function setupEvents() {
+      const svg = document.getElementById('workbenchSvg');
+
+      // Mousemove for rubberband wire preview & smooth component dragging across breadboard holes
+      svg.addEventListener('mousemove', (e) => {
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX;
+        pt.y = e.clientY;
+        const cursor = pt.matrixTransform(svg.getScreenCTM().inverse());
+
+        if (activeWireStartNode) {
+          const startPos = getNodeCoordinates(activeWireStartNode);
+          if (startPos) {
+            const preview = document.getElementById('activeWirePreview');
+            preview.classList.remove('hidden');
+            preview.setAttribute('stroke', selectedWireColor);
+            preview.setAttribute('d', computeSmoothWirePath(startPos, { x: cursor.x, y: cursor.y }));
+          }
+        }
+
+        if (draggingCompId) {
+          const comp = placedComponents.find(c => c.id === draggingCompId);
+          if (comp) {
+            // Find closest main breadboard hole (rows A-J, cols 1-30)
+            let bestHole = null;
+            let bestDist = Infinity;
+            MAIN_ROWS.forEach(r => {
+              for (let c = 1; c <= BB_COLS; c++) {
+                const h = breadboardHoles[`BB_${r}_${c}`];
+                const d = Math.hypot(cursor.x - h.x, cursor.y - h.y);
+                if (d < bestDist) {
+                  bestDist = d;
+                  bestHole = h;
+                }
+              }
+            });
+            if (bestHole && bestDist < 40) {
+              if (comp.anchorRow !== bestHole.row || comp.anchorCol !== bestHole.col) {
+                comp.anchorRow = bestHole.row;
+                comp.anchorCol = bestHole.col;
+                renderComponentsSVG();
+                runLiveCircuitSimulation();
+              }
+            }
+          }
+        }
+      });
+
+      window.addEventListener('mouseup', () => {
+        draggingCompId = null;
+      });
+
+      // Clicking empty canvas cancels active wire
+      svg.addEventListener('mousedown', () => {
+        if (activeWireStartNode) cancelActiveWire();
+      });
+
+      // Keyboard Shortcuts: 'R' to rotate, Delete/Backspace to remove, Escape to cancel wire
+      window.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+        if (e.key === 'Escape') {
+          cancelActiveWire();
+        } else if (e.key === 'r' || e.key === 'R') {
+          if (selectedEntity && selectedEntity.kind === 'comp') {
+            const comp = placedComponents.find(c => c.id === selectedEntity.id);
+            if (comp) {
+              comp.rotation = (comp.rotation + 90) % 360;
+              renderAll();
+            }
+          }
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          deleteSelectedEntity();
+        }
+      });
+
+      // Wire color selector buttons
+      document.querySelectorAll('#wireColorPalette button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedWireColor = btn.getAttribute('data-color');
+          document.querySelectorAll('#wireColorPalette button').forEach(b => {
+            b.className = b.className.replace('ring-2 ring-offset-2 ring-offset-slate-900 ring-white scale-105', 'opacity-80');
+          });
+          btn.classList.remove('opacity-80');
+          btn.classList.add('ring-2', 'ring-offset-2', 'ring-offset-slate-900', 'ring-white', 'scale-105');
+        });
+      });
+
+      // Inspector buttons
+      document.getElementById('btnRotateSelected').addEventListener('click', () => {
+        if (selectedEntity && selectedEntity.kind === 'comp') {
+          const comp = placedComponents.find(c => c.id === selectedEntity.id);
+          if (comp) {
+            comp.rotation = (comp.rotation + 90) % 360;
+            renderAll();
+          }
+        }
+      });
+
+      document.getElementById('btnDeleteSelected').addEventListener('click', deleteSelectedEntity);
+
+      // Top bar buttons
+      document.getElementById('experimentSelect').addEventListener('change', (e) => {
+        currentExperiment = e.target.value;
+        recordedReadings = [];
+        renderObservationTable();
+        populateSubModesAndHeaders();
+        renderAll();
+      });
+
+      document.getElementById('subModeSelect').addEventListener('change', (e) => {
+        currentSubMode = e.target.value;
+        recordedReadings = [];
+        renderObservationTable();
+        renderAll();
+      });
+
+      document.getElementById('btnVerifyCircuit').addEventListener('click', verifyCurrentCircuit);
+      document.getElementById('btnReferenceModal').addEventListener('click', () => {
+        document.getElementById('referenceModal').classList.remove('hidden');
+      });
+      document.getElementById('btnAutoBuild').addEventListener('click', buildDemoCircuit);
+      document.getElementById('btnClearBoard').addEventListener('click', () => {
+        createDefaultWorkbench();
+        renderObservationTable();
+        document.getElementById('diagnosticBanner').classList.add('hidden');
+        renderAll();
+      });
+
+      document.getElementById('btnRecordPoint').addEventListener('click', recordCurrentReading);
+      document.getElementById('btnClearData').addEventListener('click', () => {
+        recordedReadings = [];
+        renderObservationTable();
+        drawCharacteristicGraph();
+      });
+
+      // Auto-Sweep button to automatically sweep the supply or LDR distance and plot the curve
+      document.getElementById('btnAutoSweep').addEventListener('click', () => {
+        if (jumperWires.length < 2) {
+          buildDemoCircuit();
+        }
+        recordedReadings = [];
+        const rps = benchInstruments.find(i => i.type === 'rps');
+        const drb = benchInstruments.find(i => i.type === 'drb');
+        const ldr = placedComponents.find(c => c.type === 'ldr_sensor');
+
+        if (currentExperiment === 'exp8' && ldr) {
+          [10, 20, 30, 40, 50, 60, 70, 80, 90].forEach(d => {
+            ldr.lightDist = d;
+            runLiveCircuitSimulation();
+            recordCurrentReading();
+          });
+        } else if (currentExperiment === 'exp3' && currentSubMode === 'load' && drb) {
+          if (rps) rps.voltage = 15;
+          [200, 400, 600, 1000, 2000, 4000, 6000, 8000].forEach(rVal => {
+            drb.resistance = rVal;
+            runLiveCircuitSimulation();
+            recordCurrentReading();
+          });
+        } else if (rps) {
+          const steps = (currentExperiment === 'exp1' && currentSubMode === 'forward')
+            ? [0, 0.2, 0.4, 0.6, 0.8, 1.2, 2.0, 4.0, 6.0, 10.0, 15.0]
+            : [0, 1, 2, 4, 5, 5.6, 6.5, 8, 10, 14, 18, 22];
+          steps.forEach(v => {
+            rps.voltage = v;
+            runLiveCircuitSimulation();
+            recordCurrentReading();
+          });
+        }
+        renderAll();
+      });
+    }
+
+    function deleteSelectedEntity() {
+      if (!selectedEntity) return;
+      if (selectedEntity.kind === 'comp') {
+        placedComponents = placedComponents.filter(c => c.id !== selectedEntity.id);
+      } else if (selectedEntity.kind === 'wire') {
+        jumperWires = jumperWires.filter(w => w.id !== selectedEntity.id);
+      } else if (selectedEntity.kind === 'inst') {
+        // Remove wires attached to this instrument
+        const inst = benchInstruments.find(i => i.id === selectedEntity.id);
+        if (inst) {
+          const termIds = new Set(inst.terminals.map(t => t.id));
+          jumperWires = jumperWires.filter(w => !termIds.has(w.fromNode) && !termIds.has(w.toNode));
+          benchInstruments = benchInstruments.filter(i => i.id !== selectedEntity.id);
+        }
+      }
+      selectedEntity = null;
+      renderAll();
+    }
+
+    // Initialize Application on Load
+    window.onload = function() {
+      initBreadboardGeometry();
+      createDefaultWorkbench();
+      populateSubModesAndHeaders();
+      setupEvents();
+      renderAll();
+    };
+  </script>
+</body>
+</html>
