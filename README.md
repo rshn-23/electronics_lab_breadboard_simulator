@@ -28,7 +28,7 @@ Access the simulator directly in your browser via GitHub Pages.
 - **`Delete` / `Backspace`:** Remove selected component, wire, or instrument.
 
 ## Tech Stack
-- **Frontend:** HTML5, Tailwind CSS, Vanilla JavaScript (ES6+), SVG & HTML5 Canvas
+- **Frontend:** HTML5, Tailwind CSS, Vanilla JavaScript (ES6+), SVG & HTML5 Canvas.
 
 ## License
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
