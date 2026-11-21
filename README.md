@@ -3,8 +3,8 @@
 An interactive, browser-based solderless breadboard and benchtop electronics laboratory simulator built for undergraduate electronics practical preparation.
 
 ## Live Demo
-Access the simulator directly in your browser via GitHub Pages:  
-👉 **[Launch Electronics Lab Breadboard Simulator](https://rshn-23.github.io/electronics_lab_breadboard_simulator/)**
+Access the simulator directly in your browser via GitHub Pages. 
+
 
 ## Key Features
 - **High-Precision Solderless Breadboard:** 30-column terminal strips (`A–E`, `F–J`) and continuous power rails (`+` / `−`) with real-time internal strip continuity highlighting on hover.
